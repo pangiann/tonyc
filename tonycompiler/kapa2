@@ -1,0 +1,33 @@
+def main():
+	def writeArray (char[] msg; int n; int[] x):
+                int i
+                puts(msg)
+                for i := 0; i < n; i := i+1:
+                        if i > 0:
+                                puts(", ")
+                        end
+                        puti(x[i])
+                end
+                puts("\n")
+        end
+	int [][]x
+	int y
+	int i
+	int n
+	int j
+	x := new int[][3]
+	
+	for i := 0; i < 3; i := i+1:
+		x[i] := new int[3]
+		
+	end
+	for i := 0; i < 3; i := i + 1:
+		for j := 0; j < 3; j := j + 1:
+			x[i][j] := geti()
+		end
+	end 
+
+	for i := 0; i < 3; i := i + 1:
+		writeArray("Initial array: ", 3, x[i])
+	end
+end

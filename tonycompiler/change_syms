@@ -1,0 +1,7 @@
+readInteger geti
+writeInteger puti
+writeByte putb
+writeChar putc
+writeString puts
+readChar getc
+readString gets

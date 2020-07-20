@@ -1,0 +1,17 @@
+def main():
+  int x, y
+  char z
+  def pan(int p1, p2):
+    int o
+    p1 := x
+    p2 := 1
+  end
+  def kapa(int p3, p4):
+    int x
+    char []l
+    x := '5'
+	l := "pangiann"
+  end
+  x := y
+  z := 'x'
+end
