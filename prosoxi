@@ -1,8 +1,0 @@
-na ftiaxoume ta by reference, sygkekrimena an baleis 
-
-(ref int x)
-kai meta 
-
-x := 100
-h i < x 
-tote otan kaneis load h store profanws prepei na kaneis load sto load
