@@ -160,6 +160,14 @@ let assignment_error atom_type expr_type (startpos, endpos) =
   error "Assignment error: %s expected, but found %s instead."
              (typeToString atom_type) (typeToString expr_type)
 
+let lvalue_error_call (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Assignment error: A Function Call cannot be a Lvalue."
+
+let lvalue_error_string (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Assignment error: A String cannot be a Lvalue."
+
 let many_arguments (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Too many arguments."

@@ -1,0 +1,42 @@
+Ast.cmo : Types.cmi Symbol.cmi Ast.cmi
+Ast.cmx : Types.cmx Symbol.cmx Ast.cmi
+Ast.cmi : Types.cmi Symbol.cmi
+CheckTypes.cmo : Types.cmi Symbol.cmi PrintErrors.cmo extend.cmo Error.cmi \
+    Ast.cmi
+CheckTypes.cmx : Types.cmx Symbol.cmx PrintErrors.cmx extend.cmx Error.cmx \
+    Ast.cmx
+CodeGen.cmo : Types.cmi Symbol.cmi Identifier.cmi Error.cmi Ast.cmi
+CodeGen.cmx : Types.cmx Symbol.cmx Identifier.cmx Error.cmx Ast.cmx
+Error.cmo : Error.cmi
+Error.cmx : Error.cmi
+Error.cmi :
+Hashcons.cmo : Hashcons.cmi
+Hashcons.cmx : Hashcons.cmi
+Hashcons.cmi :
+Identifier.cmo : Hashcons.cmi Identifier.cmi
+Identifier.cmx : Hashcons.cmx Identifier.cmi
+Identifier.cmi :
+Lexer.cmo : Parser.cmi Lexer.cmi
+Lexer.cmx : Parser.cmx Lexer.cmi
+Lexer.cmi : Parser.cmi
+Main.cmo : Symbol.cmi Sem.cmo Parser.cmi Lexer.cmi CodeGen.cmo Ast.cmi
+Main.cmx : Symbol.cmx Sem.cmx Parser.cmx Lexer.cmx CodeGen.cmx Ast.cmx
+Parser.cmo : Types.cmi PrintErrors.cmo Lexer.cmi Error.cmi Ast.cmi \
+    Parser.cmi
+Parser.cmx : Types.cmx PrintErrors.cmx Lexer.cmx Error.cmx Ast.cmx \
+    Parser.cmi
+Parser.cmi : Ast.cmi
+PrintErrors.cmo : Types.cmi Symbol.cmi extend.cmo Error.cmi Ast.cmi
+PrintErrors.cmx : Types.cmx Symbol.cmx extend.cmx Error.cmx Ast.cmx
+Sem.cmo : Types.cmi Symbtest.cmo Symbol.cmi PrintErrors.cmo Identifier.cmi \
+    CheckTypes.cmo Ast.cmi
+Sem.cmx : Types.cmx Symbtest.cmx Symbol.cmx PrintErrors.cmx Identifier.cmx \
+    CheckTypes.cmx Ast.cmx
+Symbol.cmo : Types.cmi Identifier.cmi Error.cmi Symbol.cmi
+Symbol.cmx : Types.cmx Identifier.cmx Error.cmx Symbol.cmi
+Symbol.cmi : Types.cmi Identifier.cmi
+Symbtest.cmo : Types.cmi Symbol.cmi Identifier.cmi
+Symbtest.cmx : Types.cmx Symbol.cmx Identifier.cmx
+Types.cmo : Types.cmi
+Types.cmx : Types.cmi
+Types.cmi :

@@ -220,16 +220,10 @@ and sem_stmt stmt fun_name =
 and sem_simple simple =
   match simple.simple_info with
   | Simple_skip -> ()
-  (*)| Simple_assignment (atom, expr) ->
-    let atom_entry = sem_atom (atom)  in
-      let expr_entry = sem_expr (expr) in
-        check_type_assignment (atom_entry) (expr_entry)
-  *)
   | Simple_assignment (atom, expr) ->
     let atom_entry = sem_atom (atom)  in
     let expr_entry = sem_expr (expr) in
     check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (simple.simple_error_pos)
-
 
   | Simple_call call ->
     let call_entry = sem_call (call) (simple.simple_error_pos) in

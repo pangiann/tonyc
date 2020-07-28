@@ -54,13 +54,18 @@ let get_expr_type expr entry_type =
   | _, t             -> Printf.printf "hello\n"; t
 
 let check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (startpos, endpos) =
-  let atom_entry_type = get_entry_type atom_entry in
-    let expr_entry_type = get_entry_type expr_entry in
-      let atom_type = get_atom_type (atom.atom_info) (atom_entry_type) in
-        let expr_type = get_expr_type (expr.expr_info) (expr_entry_type) in
-          if(equalType (atom_type) (expr_type) = false) then
-            assignment_error atom_type expr_type (startpos, endpos)
-
+  (*check if this atom can be lvalue*)
+  match atom.atom_info with
+  | A_call _ -> lvalue_error_call (startpos, endpos)
+  | A_string _ -> lvalue_error_string (startpos, endpos)
+  | _ -> (
+            let atom_entry_type = get_entry_type atom_entry in
+              let expr_entry_type = get_entry_type expr_entry in
+                let atom_type = get_atom_type (atom.atom_info) (atom_entry_type) in
+                  let expr_type = get_expr_type (expr.expr_info) (expr_entry_type) in
+                    if(equalType (atom_type) (expr_type) = false) then
+                      assignment_error atom_type expr_type (startpos, endpos)
+          )
 
 
 
