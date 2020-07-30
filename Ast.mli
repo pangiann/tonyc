@@ -37,6 +37,8 @@ and same_type_defs_properties = {
 and expr_properties = {
   mutable expr_info : ast_expr;
   mutable expr_error_pos : Lexing.position * Lexing.position;
+  mutable expr_type : typ;
+
 }
 
 and atom_properties = {

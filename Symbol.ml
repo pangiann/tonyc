@@ -171,7 +171,7 @@ let lookupEntry id how err =
       try
         lookup ()
       with Not_found ->
-        error "unknown identifier %a (first occurrence)"
+        error "unknown identifier %a"
           pretty_id id;
         (* put it in, so we don't see more errors *)
         H.add !tab id (no_entry id);

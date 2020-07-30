@@ -34,9 +34,16 @@ let main =
          stdin)
     in
       let lexbuf = Lexing.from_channel cin in
-        parse_with_error lexbuf;
-        (*print_ast !ast_tree;*)
-        sem_ast   !ast_tree;
-        Printf.printf("helloooo\n");
-        gen_maybe_program !ast_tree;
-        exit 0
+
+        try
+          parse_with_error lexbuf;
+          (*print_ast !ast_tree;*)
+          sem_ast   !ast_tree;
+          Printf.printf("helloooo\n");
+          gen_maybe_program !ast_tree;
+          exit 0
+
+        with
+          | PrintErrors.Terminate -> Printf.printf("Terminate exception caught\n");
+          | Pervasives.Exit -> Printf.printf("Exit exception caught\n");
+          | Sem.TypeError -> Printf.printf("TypeError exception caught\n");

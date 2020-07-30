@@ -5,8 +5,8 @@ CheckTypes.cmo : Types.cmi Symbol.cmi PrintErrors.cmo extend.cmo Error.cmi \
     Ast.cmi
 CheckTypes.cmx : Types.cmx Symbol.cmx PrintErrors.cmx extend.cmx Error.cmx \
     Ast.cmx
-CodeGen.cmo : Types.cmi Symbol.cmi Identifier.cmi Error.cmi Ast.cmi
-CodeGen.cmx : Types.cmx Symbol.cmx Identifier.cmx Error.cmx Ast.cmx
+CodeGen.cmo :
+CodeGen.cmx :
 Error.cmo : Error.cmi
 Error.cmx : Error.cmi
 Error.cmi :

@@ -208,6 +208,8 @@ and check_hashtag (expr1, expr1_entry, expr2, expr2_entry) =
   let expr2_entry_type =  (get_entry_type expr2_entry) in
   let expr1_type = get_expr_type (expr1.expr_info) (expr1_entry_type) in
   let expr2_type = get_expr_type (expr2.expr_info) (expr2_entry_type) in
+  expr1.expr_type <- expr1_type;
+  expr2.expr_type <- expr2_type;
   match expr2_type with
   | TYPE_list list_type ->
     if (equalType expr1_type list_type = false) then

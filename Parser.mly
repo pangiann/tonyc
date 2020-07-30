@@ -241,17 +241,17 @@ atom        : T_var                                     { { atom_info = A_var ($
             | call                                      { { atom_info = A_call ($1); atom_error_pos = ($startpos, $endpos); atom_frame_place = 0; atom_depth = 0; atom_byrefFlag = false; atom_callbyref = false; } }
 
 
-expr        : atom                                      { { expr_info = E_atom ($1);     expr_error_pos = ($startpos, $endpos) }  }
-            | T_const                                   { { expr_info = E_const($1);     expr_error_pos = ($startpos, $endpos) }  }
-            | T_character                               { { expr_info = E_character($1); expr_error_pos = ($startpos, $endpos) }  }
+expr        : atom                                      { { expr_info = E_atom ($1);     expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none }  }
+            | T_const                                   { { expr_info = E_const($1);     expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none }  }
+            | T_character                               { { expr_info = E_character($1); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none }  }
             | T_lparen expr T_rparen                    { $2 }
             | T_lparen expr error                       { missing_rparen_expr_error ($startpos, $endpos); raise Terminate }
           /*  | unary_op expr %prec T_neg                 { { expr_info = E_unary_op ($1, $2); expr_error_pos = ($startpos, $endpos) }  }*/
 
-            | T_plus expr                               { { expr_info = E_unary_op (O_plus, $2); expr_error_pos = ($startpos, $endpos) }  }
-            | T_minus expr                              { { expr_info = E_unary_op (O_minus, $2); expr_error_pos = ($startpos, $endpos) } }
+            | T_plus expr                               { { expr_info = E_unary_op (O_plus, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none}  }
+            | T_minus expr                              { { expr_info = E_unary_op (O_minus, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 
-            | expr binary_op expr                       { { expr_info = E_binary_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos) } }
+            | expr binary_op expr                       { { expr_info = E_binary_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 
 /*
             | expr T_plus expr                          { E_binary_op ($1, O_plus, $3)  }
@@ -262,7 +262,7 @@ expr        : atom                                      { { expr_info = E_atom (
 
 */
 
-            | expr compare_op expr                      { { expr_info = E_compare_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos); } }
+            | expr compare_op expr                      { { expr_info = E_compare_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 /*
             | expr T_equal expr                         { E_compare_op ($1, O_eq, $3)        }
             | expr T_noteq expr                         { E_compare_op ($1, O_noteq,  $3)    }
@@ -272,12 +272,12 @@ expr        : atom                                      { { expr_info = E_atom (
             | expr T_greatereq expr                     { E_compare_op ($1, O_greatereq, $3) }
 */
 
-            | T_true                                    { { expr_info = E_true; expr_error_pos = ($startpos, $endpos); } }
-            | T_false                                   { { expr_info = E_false; expr_error_pos = ($startpos, $endpos); } }
+            | T_true                                    { { expr_info = E_true; expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
+            | T_false                                   { { expr_info = E_false; expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 
-            | T_not expr                                { { expr_info = E_unary_op (O_not, $2); expr_error_pos = ($startpos, $endpos); } }
+            | T_not expr                                { { expr_info = E_unary_op (O_not, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 
-            | expr boolean_op expr                      { { expr_info = E_bool_op ($1, $2,  $3); expr_error_pos= ($startpos, $endpos); } }
+            | expr boolean_op expr                      { { expr_info = E_bool_op ($1, $2,  $3); expr_error_pos= ($startpos, $endpos); expr_type = TYPE_none } }
 /*
             | expr T_or expr                            { { E_bool_op ($1, O_or,  $3) }
             | expr T_and expr                           { { E_bool_op ($1, O_and, $3) }
@@ -285,15 +285,15 @@ expr        : atom                                      { { expr_info = E_atom (
             | expr binary_op error                      { invalid_binary_expr_error($startpos, $endpos); raise Terminate }
             | expr compare_op error                     { invalid_cmp_expr_error($startpos, $endpos); raise Terminate }
 
-            | T_new mytype T_lbracket expr T_rbracket   { { expr_info = E_new ($2,  $4);   expr_error_pos = ($startpos, $endpos) } }
+            | T_new mytype T_lbracket expr T_rbracket   { { expr_info = E_new ($2,  $4);   expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
             | T_new mytype error                        { missing_lbracket_new_error ($startpos, $endpos); raise Terminate }
             | T_new mytype T_lbracket expr error        { missing_rbracket_new_error ($startpos, $endpos); raise Terminate }
-            | T_nil                                     { { expr_info = E_nil;             expr_error_pos = ($startpos, $endpos) } }
+            | T_nil                                     { { expr_info = E_nil;             expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 
-            | T_nil_qm T_lparen expr T_rparen           { { expr_info = E_nilqm($3);       expr_error_pos = ($startpos, $endpos) } }
-            | expr T_hashtag expr                       { { expr_info = E_hashtag($1, $3); expr_error_pos = ($startpos, $endpos) } }
-            | T_head T_lparen expr T_rparen             { { expr_info = E_head($3);        expr_error_pos = ($startpos, $endpos) } }
-            | T_tail T_lparen expr T_rparen             { { expr_info = E_tail($3);        expr_error_pos = ($startpos, $endpos) } }
+            | T_nil_qm T_lparen expr T_rparen           { { expr_info = E_nilqm($3);       expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
+            | expr T_hashtag expr                       { { expr_info = E_hashtag($1, $3); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
+            | T_head T_lparen expr T_rparen             { { expr_info = E_head($3);        expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
+            | T_tail T_lparen expr T_rparen             { { expr_info = E_tail($3);        expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none } }
 
 
 %inline unary_op:
