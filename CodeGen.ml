@@ -29,14 +29,15 @@ let type_stack = Stack.create ()
 
 let lib_func_list = ref []
 let rec_func_list = ref []
+let decl_func_list = ref []
 
-let rec search_lib_func l name =
+let rec search_func l name =
         match l with
         | [] -> false
         | x::xs ->
         (
                 if (x = name) then (true)
-                else search_lib_func (xs) (name)
+                else search_func (xs) (name)
         )
 
 
@@ -520,41 +521,58 @@ and gen_simple simple frame func_name (current_block) =
     end
   | Simple_call (name, expr_list) ->
        (* check if we call a lib function *)
-       if (search_lib_func (!lib_func_list) (name)) <> true then
+       let param_list = gen_expr_list expr_list [] frame current_block in
+       if (search_func (!lib_func_list) (name)) <> true then
        (
-
-         let param_list = gen_expr_list expr_list [] frame current_block in
          (* if not check if we have a recursion *)
-         if (search_lib_func (!rec_func_list) (name)) <> true then
+         if (search_func (!rec_func_list) (name)) <> true then
          (
-           let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
-           ignore(rec_func_list := name::(!rec_func_list));
-           let func_def = H.find !funtable (id_make name) in
-             ignore(gen_fun_def func_def frame param_arr);
-           ignore(position_at_end current_block builder);
-
-           let ll_func = my_lookup_function name in
-             ignore(build_call ll_func param_arr "" builder)
+          (* if not check if we've already declared this function *)
+           if (search_func (!decl_func_list) (name)) <> true then
+              gen_simple_call param_list frame current_block name
+           else
+              gen_simple_decl_call param_list frame current_block name
          )
          else
-         (
-           let param_frame_ptr = build_struct_gep frame 0 "" builder in
-           let param_frame = build_load param_frame_ptr "loadtmp" builder in
-           let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
-           ignore(position_at_end current_block builder);
-           let ll_func = my_lookup_function name in
-             ignore(build_call ll_func param_arr "" builder)
-         )
+            gen_simple_rec_call param_list frame current_block name
       )
       else
-        (
-         let param_list = gen_expr_list expr_list [] frame current_block in
-         let param_arr = Array.of_list (param_list) in (*array of llvalues*)
-          ignore(position_at_end current_block builder);
-         let ll_func = my_lookup_function name in
-         ignore(build_call ll_func param_arr "" builder);
-         ()
-        )
+        gen_simple_lib_call param_list frame current_block name
+
+
+and gen_simple_call param_list frame current_block name =
+  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+  ignore(rec_func_list := name::(!rec_func_list));
+  ignore(decl_func_list := name::(!decl_func_list));
+  let func_def = H.find !funtable (id_make name) in
+    ignore(gen_fun_def func_def frame param_arr);
+  ignore(position_at_end current_block builder);
+  let ll_func = my_lookup_function name in
+    ignore(build_call ll_func param_arr "" builder)
+
+and gen_simple_decl_call param_list frame current_block name =
+  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+  let ll_func = my_lookup_function name in
+    ignore(build_call ll_func param_arr "" builder)
+
+
+and gen_simple_lib_call param_list frame current_block name =
+  let param_arr = Array.of_list (param_list) in (*array of llvalues*)
+   ignore(position_at_end current_block builder);
+  let ll_func = my_lookup_function name in
+   ignore(build_call ll_func param_arr "" builder)
+
+
+and gen_simple_rec_call param_list frame current_block name =
+  let param_frame_ptr = build_struct_gep frame 0 "" builder in
+  let param_frame = build_load param_frame_ptr "loadtmp" builder in
+  let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
+  ignore(position_at_end current_block builder);
+  let ll_func = my_lookup_function name in
+    ignore(build_call ll_func param_arr "" builder)
+
+
+
 
 
 (* this is a significant function *)
@@ -662,42 +680,24 @@ and gen_atom frame atom current_block =
         var_atom_loaded
     )
   | A_call (name, expr_list) ->
-    if (search_lib_func (!lib_func_list) (name)) <> true then
+  (* check if we call a lib function *)
+      let param_list = gen_expr_list expr_list [] frame current_block in
+      if (search_func (!lib_func_list) (name)) <> true then
       (
-        let param_list = gen_expr_list expr_list [] frame current_block in
-
-          if (search_lib_func (!rec_func_list) (name)) <> true then
-           (
-            let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
-            ignore(rec_func_list := name::(!rec_func_list));
-            let func_def = H.find !funtable (id_make name) in
-              ignore(gen_fun_def func_def frame param_arr);
-            ignore(position_at_end current_block builder);
-
-            let ll_func = my_lookup_function name in
-              build_call ll_func param_arr "" builder
-            )
-
+        (* if not check if we have a recursion *)
+        if (search_func (!rec_func_list) (name)) <> true then
+        (
+         (* if not check if we've already declared this function *)
+          if (search_func (!decl_func_list) (name)) <> true then
+             gen_atom_call param_list frame current_block name
           else
-          (
-            let param_frame_ptr = build_struct_gep frame 0 "" builder in
-            let param_frame = build_load param_frame_ptr "loadtmp" builder in
-            let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
-            ignore(position_at_end current_block builder);
-            let ll_func = my_lookup_function name in
-              build_call ll_func param_arr "" builder
-          )
-      )
-    else
-     (
-       let param_list = gen_expr_list expr_list [] frame current_block in
-       let param_arr = Array.of_list (param_list) in (*array of llvalues*)
-          ignore(position_at_end current_block builder);
-
-      let ll_func = my_lookup_function name in
-          build_call ll_func param_arr "" builder
-      )
-
+             gen_atom_decl_call param_list frame current_block name
+        )
+        else
+           gen_atom_rec_call param_list frame current_block name
+     )
+     else
+       gen_atom_lib_call param_list frame current_block name
 
 
 (*---------------------------SOSSSS--------------------------------*)
@@ -712,6 +712,40 @@ and gen_atom frame atom current_block =
 (* and then we load the value of the requested element from heap *)
 (* e.g. we need x[3] , we load x ptr from stack and then we load 3rd element of array *)
 (* this function is recursive so it works for every dimension *)
+
+
+and gen_atom_call param_list frame current_block name =
+  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+    ignore(rec_func_list := name::(!rec_func_list));
+    ignore(decl_func_list := name::(!decl_func_list));
+  let func_def = H.find !funtable (id_make name) in
+    ignore(gen_fun_def func_def frame param_arr);
+    ignore(position_at_end current_block builder);
+  let ll_func = my_lookup_function name in
+    build_call ll_func param_arr "" builder
+
+and gen_atom_decl_call param_list frame current_block name =
+  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+  let ll_func = my_lookup_function name in
+    build_call ll_func param_arr "" builder
+
+
+and gen_atom_lib_call param_list frame current_block name =
+  let param_arr = Array.of_list (param_list) in (*array of llvalues*)
+    ignore(position_at_end current_block builder);
+  let ll_func = my_lookup_function name in
+    build_call ll_func param_arr "" builder
+
+
+and gen_atom_rec_call param_list frame current_block name =
+  let param_frame_ptr = build_struct_gep frame 0 "" builder in
+  let param_frame = build_load param_frame_ptr "loadtmp" builder in
+  let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
+    ignore(position_at_end current_block builder);
+  let ll_func = my_lookup_function name in
+    build_call ll_func param_arr "" builder
+
+
 
 and gen_struct frame atom current_block =
   match atom.atom_info with
