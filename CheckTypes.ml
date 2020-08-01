@@ -14,8 +14,9 @@ let note_by_ref par expr =
    | PASS_BY_REFERENCE, _  ->
    begin
      match expr.expr_info with
-     | E_atom (atom) ->  atom.atom_callbyref <- true
-     | _ -> ()
+     | E_atom (atom) -> atom.atom_callbyref <- true
+     | E_head (h_expr) -> expr.expr_callbyref <- true
+     | E_tail (t_expr) -> expr.expr_callbyref <- true
    end
    | PASS_BY_VALUE, _ -> ()
  end
@@ -53,6 +54,7 @@ let get_expr_type expr entry_type =
   | E_atom (atom), t -> get_atom_type (atom.atom_info) (t)
   | _, t             -> Printf.printf "hello\n"; t
 
+
 let check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (startpos, endpos) =
   (*check if this atom can be lvalue*)
   match atom.atom_info with
@@ -60,11 +62,16 @@ let check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (startpos, end
   | A_string _ -> lvalue_error_string (startpos, endpos)
   | _ -> (
             let atom_entry_type = get_entry_type atom_entry in
-              let expr_entry_type = get_entry_type expr_entry in
-                let atom_type = get_atom_type (atom.atom_info) (atom_entry_type) in
-                  let expr_type = get_expr_type (expr.expr_info) (expr_entry_type) in
-                    if(equalType (atom_type) (expr_type) = false) then
-                      assignment_error atom_type expr_type (startpos, endpos)
+            let expr_entry_type = get_entry_type expr_entry in
+            let atom_type = get_atom_type (atom.atom_info) (atom_entry_type) in
+            (begin
+              match expr.expr_info with
+              | E_nil ->  ignore(expr.expr_type <- atom_type)
+              | _ -> ()
+            end);
+            let expr_type = get_expr_type (expr.expr_info) (expr_entry_type) in
+              if(equalType (atom_type) (expr_type) = false) then
+                assignment_error atom_type expr_type (startpos, endpos)
           )
 
 
@@ -93,7 +100,11 @@ and check_parameters (call_entry, expr_list, entry_list) (startpos, endpos) =
         let par_type = get_entry_type par in
         let expr_entry_type =  (get_entry_type entry) in
         let expr_type = get_expr_type (expr.expr_info) (expr_entry_type) in
-
+        (begin
+          match expr.expr_info with
+          | E_nil -> ignore(expr.expr_type <- par_type)
+          | _ -> ()
+        end);
         if (equalType par_type expr_type = false) then
           parameter_type_error par_type expr_type  expr.expr_error_pos
         else check_par_aux pars exprs entries (startpos, endpos)

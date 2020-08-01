@@ -38,6 +38,8 @@ and expr_properties = {
   mutable expr_info : ast_expr;
   mutable expr_error_pos : Lexing.position * Lexing.position;
   mutable expr_type : typ;
+  mutable expr_callbyref : bool;
+
 
 }
 

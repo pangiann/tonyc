@@ -98,7 +98,6 @@ and sem_fun_def ast =
     let func_entry = sem_fun_header header in
     sem_inside_fun_list inside_fun_list func_entry;
     sem_stmts  (stmts) (func_name header);
-    Printf.printf "I'M CLOSING SCOPE RIGHT NOW\n";
     header.var_type_list <-
       (
         match func_entry.entry_info with
@@ -147,9 +146,15 @@ and sem_defs_byref func_entry par_type par_name (startpos, endpos) =
   match par_name with
   | [] -> ()
   | (def :: rest) ->
-    let par_entry = newParameter (id_make def) par_type PASS_BY_REFERENCE func_entry true
-    in ignore par_entry;
-    sem_defs_byref (func_entry) (par_type) (rest) (startpos, endpos)
+  (
+      match par_type with
+      | TYPE_array _ -> error_array_byref (startpos, endpos)
+      | TYPE_list  _ -> error_list_byref (startpos, endpos)
+      | _ ->
+            let par_entry = newParameter (id_make def) par_type PASS_BY_REFERENCE func_entry true
+            in ignore par_entry;
+            sem_defs_byref (func_entry) (par_type) (rest) (startpos, endpos)
+    )
 
 and sem_inside_fun_list inside_fun_list func_entry =
   match inside_fun_list with
@@ -205,10 +210,7 @@ and sem_stmt stmt fun_name =
       begin
         match func_entry.entry_info with
         | ENTRY_function func_info ->
-        (
-          Printf.printf "%s\n" fun_name;
           check_return_type (expr, expr_entry, func_info.function_result)
-        )
         | _ -> ()
       end
   | S_if if_stmt ->
@@ -236,7 +238,6 @@ and sem_simple simple =
 and sem_call call (startpos, endpos) =
   match call with
   | (call_name, call_expr_list) ->
-    Printf.printf "i am calling a function\n";
     let call_entry = lookupEntry (id_make call_name) LOOKUP_ALL_SCOPES true in
     (
       (
@@ -256,9 +257,7 @@ and sem_atom atom =
       | ENTRY_variable variable_info ->
           atom.atom_frame_place <- variable_info.variable_frame_place;
           atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
-          atom.atom_byrefFlag <- false;
-          Printf.printf "var %s with frame place = %d and depth =  %d\n"
-                          var_atom atom.atom_frame_place atom.atom_depth
+          atom.atom_byrefFlag <- false
       | ENTRY_parameter parameter_info ->
           atom.atom_frame_place <- parameter_info.parameter_frame_place;
           atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
@@ -268,9 +267,7 @@ and sem_atom atom =
               | PASS_BY_VALUE -> false
               | PASS_BY_REFERENCE -> true
 
-            );
-          Printf.printf "par %s with frame place = %d and depth =  %d\n"
-                          var_atom atom.atom_frame_place atom.atom_depth
+            )
 
       | _ -> raise TypeError
       );
@@ -302,16 +299,11 @@ and get_structure_entry atom =
       match atom_entry.entry_info with
       | ENTRY_variable variable_info ->
           atom.atom_frame_place <- variable_info.variable_frame_place;
-          atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
-          Printf.printf "var array  %s with frame place = %d and depth =  %d\n"
-                          var_atom atom.atom_frame_place atom.atom_depth
-
+          atom.atom_depth <- atom_entry.entry_scope.sco_nesting
 
       | ENTRY_parameter parameter_info ->
           atom.atom_frame_place <- parameter_info.parameter_frame_place;
-          atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
-          Printf.printf "par array %s with frame place = %d and depth =  %d\n"
-                          var_atom atom.atom_frame_place atom.atom_depth
+          atom.atom_depth <- atom_entry.entry_scope.sco_nesting
 
       | _ -> raise TypeError
       );
@@ -413,7 +405,6 @@ and sem_expr expr =
     check_bool_exp (expr1, sem_expr expr1, expr2, sem_expr expr2);
     newTemporary TYPE_bool
   | E_compare_op (expr1, oper, expr2) ->
-    Printf.printf "i'm in compare op\n";
     check_compare_exp (expr1, sem_expr expr1, expr2, sem_expr expr2);
     newTemporary TYPE_bool
   | E_unary_op (oper, expr) ->

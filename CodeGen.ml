@@ -241,13 +241,15 @@ and gen_fun_def ast current_fr param_arr  =
       ignore(build_ret_void builder);
       ret_flag := 0
    );
+   (* pop from stack the frame type of function *)
+   (* because function terminates now *)
    ignore(Stack.pop type_stack);
    (rec_func_list :=
     match !rec_func_list with
     | [] -> []
     | hd :: tl -> tl
    );
-
+   (* and decrement frame_counter by one *)
   (frame_counter := !frame_counter - 1);
   )
 
@@ -393,6 +395,7 @@ and gen_if_body frame if_body if_cond the_function start_bb func_name current_bl
             | None -> ()
             | Some (else_whole) -> gen_stmts (frame) (else_whole) (func_name) (insertion_block builder)
           end;
+          (* be careful if we don't have a return stmt then branch to endif, else a return stmt will be created *)
           if !ret_flag = 0 then
           ( ignore(build_br after_bb builder);
             ret_flag := 0
@@ -499,23 +502,14 @@ and gen_simple simple frame func_name (current_block) =
         let parent_frame = codegen_frame_search frame  (!frame_counter - atom.atom_depth) in
         let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "var" builder in
           if (atom.atom_byrefFlag <> true) then
-            (
-              if (is_null expr_val && ((type_of (expr_val)) = (pointer_type (int_type)))) then
-              (
-                let var_atom = build_load var_atom_elemptr "" builder in
-                let null_type = const_pointer_null (type_of var_atom) in
-                  ignore(build_store null_type var_atom_elemptr builder)
-              )
-              else
-                ignore(build_store expr_val var_atom_elemptr builder)
-            )
+              ignore(build_store expr_val var_atom_elemptr builder)
           else
             (
               let var_atom_byref_loaded = build_load var_atom_elemptr "loadbyerf" builder in
                 ignore(build_store expr_val var_atom_byref_loaded builder)
             )
       )
-      (*  be careful, now we the address of the element of array where we want to store some value *)
+      (*  be careful, now we want the address of the element of array where we want to store a value *)
       (* you could check that we call gen_struct with stru_atom and not with the overall atom  *)
       (* e.g. we want x[3] := 1 then we just load x , x[3][3] := 1 we only load x[3] *)
       | A_structure (stru_atom, stru_expr) ->
@@ -525,12 +519,14 @@ and gen_simple simple frame func_name (current_block) =
           ignore(build_store expr_val addr builder)
     end
   | Simple_call (name, expr_list) ->
+       (* check if we call a lib function *)
        if (search_lib_func (!lib_func_list) (name)) <> true then
        (
-       let param_list = gen_expr_list expr_list [] frame current_block in
 
+         let param_list = gen_expr_list expr_list [] frame current_block in
+         (* if not check if we have a recursion *)
          if (search_lib_func (!rec_func_list) (name)) <> true then
-          (
+         (
            let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
            ignore(rec_func_list := name::(!rec_func_list));
            let func_def = H.find !funtable (id_make name) in
@@ -539,27 +535,26 @@ and gen_simple simple frame func_name (current_block) =
 
            let ll_func = my_lookup_function name in
              ignore(build_call ll_func param_arr "" builder)
-           )
-
+         )
          else
          (
-           ignore(Stack.pop type_stack);
-           let param_frame = build_bitcast frame (pointer_type (Stack.top type_stack)) "frame_param" builder in
+           let param_frame_ptr = build_struct_gep frame 0 "" builder in
+           let param_frame = build_load param_frame_ptr "loadtmp" builder in
            let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
            ignore(position_at_end current_block builder);
-           ignore(Stack.push (type_of (frame)) type_stack);
            let ll_func = my_lookup_function name in
              ignore(build_call ll_func param_arr "" builder)
          )
       )
-       else
+      else
         (
          let param_list = gen_expr_list expr_list [] frame current_block in
          let param_arr = Array.of_list (param_list) in (*array of llvalues*)
           ignore(position_at_end current_block builder);
          let ll_func = my_lookup_function name in
          ignore(build_call ll_func param_arr "" builder);
-         ())
+         ()
+        )
 
 
 (* this is a significant function *)
@@ -581,7 +576,6 @@ and gen_expr_list expr_list acc frame current_block =
             let var_atom_elemptr = gen_pass_array atom frame current_block in
               gen_expr_list (xs) (var_atom_elemptr :: acc) frame current_block
           | _ ->
-
             let parent_frame = codegen_frame_search frame (!frame_counter - atom.atom_depth) in
             let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "" builder in
               gen_expr_list (xs) (var_atom_elemptr :: acc) frame current_block
@@ -589,8 +583,46 @@ and gen_expr_list expr_list acc frame current_block =
         else
           gen_expr_list (xs) ( (gen_expr frame x current_block) :: acc ) frame current_block
      end
+    | E_head h_expr ->
+      if x.expr_callbyref then
+        let lista = gen_passbyref_list h_expr frame current_block in
+        let list_ptr = build_in_bounds_gep lista [| const_int int_type 0 |] "listhead" builder in
+          gen_expr_list (xs) (list_ptr :: acc) frame current_block
+      else gen_expr_list (xs) ( (gen_expr frame x current_block) :: acc ) frame current_block
+
+    | E_tail t_expr ->
+      if x.expr_callbyref then
+        let lista = gen_passbyref_list t_expr frame current_block in
+        let list_ptr = build_in_bounds_gep lista [| const_int int_type 1 |] "listtail" builder in
+          gen_expr_list (xs) (list_ptr :: acc) frame current_block
+      else gen_expr_list (xs) ( (gen_expr frame x current_block) :: acc ) frame current_block
+
     | _ -> gen_expr_list (xs) ( (gen_expr frame x current_block) :: acc ) frame current_block
    end
+
+
+
+and gen_passbyref_list expr frame current_block =
+  match expr.expr_info with
+  | E_atom atom ->
+    let parent_frame = codegen_frame_search frame (!frame_counter - atom.atom_depth) in
+    let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "" builder in
+      build_load var_atom_elemptr "" builder
+  | E_head h_expr ->
+    let expr = gen_passbyref_list h_expr frame  current_block in
+    let addr = build_in_bounds_gep expr [| const_int int_type 0 |] "listhead" builder in
+      build_load addr "loadhead" builder
+
+  | E_tail (tail_expr) ->
+    let expr = gen_passbyref_list tail_expr frame  current_block in
+    let addr = build_in_bounds_gep expr [| const_int int_type 1 |] "lista" builder in
+    let lista = build_bitcast (addr) (pointer_type (type_of addr)) "listaptr" builder in
+    let listaptr = build_load lista "loadtail" builder in
+      listaptr
+
+
+  | _ -> raise Terminate
+
 
 
 (* here we load a pointer to an element of an array *)
@@ -623,7 +655,6 @@ and gen_atom frame atom current_block =
     )
     else
     (
-
       let parent_frame = codegen_frame_search frame (!frame_counter - atom.atom_depth) in
       let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "" builder in
       let var_atom_byref_loaded = build_load var_atom_elemptr "loadbyerf" builder in
@@ -649,17 +680,13 @@ and gen_atom frame atom current_block =
 
           else
           (
-            ignore(Stack.pop type_stack);
-            let param_frame = build_bitcast frame (pointer_type (Stack.top type_stack)) "frame_param" builder in
+            let param_frame_ptr = build_struct_gep frame 0 "" builder in
+            let param_frame = build_load param_frame_ptr "loadtmp" builder in
             let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
             ignore(position_at_end current_block builder);
-            ignore(Stack.push (type_of (frame)) type_stack);
             let ll_func = my_lookup_function name in
               build_call ll_func param_arr "" builder
           )
-
-
-
       )
     else
      (
@@ -691,7 +718,7 @@ and gen_struct frame atom current_block =
   | A_var var_atom ->
     let parent_frame = codegen_frame_search frame (!frame_counter - atom.atom_depth) in
     let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "" builder in
-     build_load var_atom_elemptr "" builder
+    build_load var_atom_elemptr "" builder
   | A_structure (stru_atom, stru_expr) ->
     let var_atom = gen_struct frame stru_atom current_block in
     let index = gen_expr frame stru_expr current_block in
@@ -755,25 +782,16 @@ and gen_expr frame expr current_block =
   | E_false -> const_int bool_type 0
   | E_new (new_type, new_expr) ->
     let expr = gen_expr frame new_expr current_block in
-  (*  (* convert llvalue to int *)
-    let size_num =
-      (match (int64_of_const (expr) ) with
-        Some c -> Int64.to_int (c))
-    in
-    (* find actual size of bytes to allocate with malloc *)
-    let size = size_num * (sizeOfType (new_type)) in
-    *)
+
     let size_num = build_mul expr (const_int int_type (sizeOfType (new_type))) "sizeofarr" builder in
     let ll_func = my_lookup_function "GC_malloc" in
     (* call malloc *)
     let malloc_ptr = build_call ll_func [| size_num |] "newtmp" builder in
-
     (* create pointer to first element of array and return it *)
-    let struct_type_array = Array.make (100) (to_llvm_type (new_type)) in
+    let struct_type_array = Array.make (1) (to_llvm_type (new_type)) in
     let arr_type = struct_type context struct_type_array in
     let theArrayTypePtr =  qualified_pointer_type arr_type 0 in
     let array_ptr = build_bitcast malloc_ptr theArrayTypePtr "arraytmp" builder in
-
     let final_ptr = build_bitcast (array_ptr) (pointer_type (to_llvm_type (new_type))) "arrayptr" (builder) in
       final_ptr
   | E_hashtag (hash_expr1, hash_expr2) ->
@@ -781,9 +799,7 @@ and gen_expr frame expr current_block =
     let expr2 = gen_expr frame hash_expr2 current_block in
 
     let ll_func = my_lookup_function "GC_malloc" in
-
     let malloc_ptr = build_call ll_func [| (const_int (int_type) 16) |] "newtmp" builder in
-
     let list_type = struct_type context [|(type_of expr1); (type_of expr2)|] in
     let theListTypePtr = qualified_pointer_type list_type 0 in
     let list_ptr = build_bitcast malloc_ptr theListTypePtr "listtmp" builder in
@@ -793,12 +809,10 @@ and gen_expr frame expr current_block =
     let tail_ptr = build_gep (list_ptr) [| const_int int_type32 0; const_int int_type32 1 |] "tailptr" builder in
       ignore(build_store expr2 (tail_ptr) builder);
       final_ptr
-  | E_nil -> const_null  (pointer_type (int_type))
+  | E_nil -> const_null  (to_llvm_type expr.expr_type)
   | E_nilqm (nilqm_expr) ->
     let expr = gen_expr frame nilqm_expr current_block in
       build_icmp Icmp.Eq  expr (const_pointer_null (type_of (expr))) "equaltmp" builder
-
-
   | E_head (head_expr) ->
     let expr = gen_expr frame head_expr current_block in
     let addr = build_in_bounds_gep expr [| const_int int_type 0 |] "listhead" builder in

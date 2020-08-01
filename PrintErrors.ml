@@ -222,6 +222,16 @@ let parameter_type_error par_type expr_type (startpos, endpos) =
     (typeToString par_type) (typeToString expr_type);
   raise Terminate
 
+let error_array_byref (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Array cannot be passed by refrence to a function";
+  raise Terminate
+
+  let error_list_byref (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "List cannot be passed by refrence to a function";
+    raise Terminate
+
 let return_type_error result_type expr_type (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Invalid function return type: %s expected, but found %s instead."
