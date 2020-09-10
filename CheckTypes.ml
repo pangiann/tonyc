@@ -52,7 +52,7 @@ let rec get_atom_type atom entry_type  =
 let get_expr_type expr entry_type =
   match expr, entry_type with
   | E_atom (atom), t -> get_atom_type (atom.atom_info) (t)
-  | _, t             -> Printf.printf "hello\n"; t
+  | _, t             -> t
 
 
 let check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (startpos, endpos) =

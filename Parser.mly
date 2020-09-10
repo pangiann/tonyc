@@ -105,7 +105,7 @@
 program   : func_def T_eof    { (ast_tree := Some $1); $1 }
 
 func_def  : T_def header T_colon inside_func_def stmt stmt_list T_end
-            { Fundef ($2, $4, ($5 :: $6)) }
+            { { func_info = Fundef ($2, $4, ($5 :: $6)); func_depth = 0 } }
           | T_def header error { missing_colon_error ($startpos, $endpos); raise Terminate }
           | T_def header T_colon inside_func_def stmt stmt_list error { missing_end_error ($startpos, $endpos); raise Terminate }
 
@@ -217,7 +217,7 @@ simple_list : simple                                    { [$1] }
             | simple_list T_comma simple                { $3 :: $1 }
 
 
-call        : T_var T_lparen maybe_actual_params T_rparen  { ($1, $3) }
+call        : T_var T_lparen maybe_actual_params T_rparen  { { call_info = ($1, $3); call_depth = 0 } }
             | T_var error { missing_lparen_call_error ($startpos, $endpos); raise Terminate }
             | T_var T_lparen error { wrong_function_call ($startpos, $endpos); raise Terminate }
             | T_var T_lparen maybe_actual_params error { missing_rparen_call_error ($startpos, $endpos); raise Terminate }

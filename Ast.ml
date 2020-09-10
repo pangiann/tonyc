@@ -67,10 +67,16 @@ and for_body = ast_stmt list
 
 and for_head = simple_properties list * expr_properties * simple_properties list
 
-and call_atom = string * expr_properties list
+and call_atom =  {
+  mutable call_info : string * expr_properties list;
+  mutable call_depth : int;
+}
+and ast_func_def = {
+    mutable func_info :  func_def;
+    mutable func_depth : int;
+}
+and func_def = Fundef of header_properties * ast_inside_func_def list * ast_stmt list
 
-and ast_func_def =
-    Fundef of header_properties * ast_inside_func_def list * ast_stmt list
 
 and ast_header =
     FunHeader of typ * string * same_type_defs_properties list

@@ -167,7 +167,7 @@ and read_char position = parse
 
     (* | '\\' "x" hex hex '\'' as temp  { T_character (temp)  } *) (* prosoxi na to doyme *)
 
-     | _ as chr '\''  { Printf.printf "character: %c\n" chr; T_character (chr) }
+     | _ as chr '\''  {  T_character (chr) }
      | _              { dispose_char position lexbuf  }
 
 and dispose_char position = parse
@@ -199,7 +199,7 @@ and read_string my_string position_start = parse
   | '"'                        { let
                                   str = Bytes.to_string(implode ( List.rev my_string ))
                                  in
-                                  Printf.printf "string: %s\n" str;
+
                                   T_string (str)
                                }
 

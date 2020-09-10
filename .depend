@@ -5,8 +5,8 @@ CheckTypes.cmo : Types.cmi Symbol.cmi PrintErrors.cmo extend.cmo Error.cmi \
     Ast.cmi
 CheckTypes.cmx : Types.cmx Symbol.cmx PrintErrors.cmx extend.cmx Error.cmx \
     Ast.cmx
-CodeGen.cmo :
-CodeGen.cmx :
+CodeGen.cmo : Types.cmi Symbol.cmi Identifier.cmi Error.cmi Ast.cmi
+CodeGen.cmx : Types.cmx Symbol.cmx Identifier.cmx Error.cmx Ast.cmx
 Error.cmo : Error.cmi
 Error.cmx : Error.cmi
 Error.cmi :
@@ -19,8 +19,8 @@ Identifier.cmi :
 Lexer.cmo : Parser.cmi Lexer.cmi
 Lexer.cmx : Parser.cmx Lexer.cmi
 Lexer.cmi : Parser.cmi
-Main.cmo : Symbol.cmi Sem.cmo Parser.cmi Lexer.cmi CodeGen.cmo Ast.cmi
-Main.cmx : Symbol.cmx Sem.cmx Parser.cmx Lexer.cmx CodeGen.cmx Ast.cmx
+Main.cmo : Symbol.cmi Sem.cmo Lexer.cmi CodeGen.cmo Ast.cmi
+Main.cmx : Symbol.cmx Sem.cmx Lexer.cmx CodeGen.cmx Ast.cmx
 Parser.cmo : Types.cmi PrintErrors.cmo Lexer.cmi Error.cmi Ast.cmi \
     Parser.cmi
 Parser.cmx : Types.cmx PrintErrors.cmx Lexer.cmx Error.cmx Ast.cmx \

@@ -64,11 +64,7 @@ let library_functions () =
 ;;
 
 let rec sem_ast ast_tree =
-  force_newline ();
-  printf "****** SEM ANALYSIS *******";
-  force_newline ();
   sem_maybe_program ast_tree;
-  force_newline ()
 
 and sem_maybe_program ast_tree =
   match ast_tree with
@@ -79,7 +75,7 @@ and sem_maybe_program ast_tree =
 
 and sem_program ast_tree =
   initSymbolTable 256;
-  printSymbolTable ();
+
 
   library_functions();
 
@@ -93,9 +89,10 @@ and func_name header =
 
 (* na tsekaroume an to frame size einai swsto *)
 and sem_fun_def ast =
-  match ast with
+  match ast.func_info with
   | Fundef (header, inside_fun_list, stmts) ->
     let func_entry = sem_fun_header header in
+    ast.func_depth <- func_entry.entry_scope.sco_nesting + 1;
     sem_inside_fun_list inside_fun_list func_entry;
     sem_stmts  (stmts) (func_name header);
     header.var_type_list <-
@@ -106,8 +103,8 @@ and sem_fun_def ast =
 
       );
 
-    closeScope();
-    printSymbolTable()
+    closeScope()
+
 
 (*we will use header position after newFunction with TRY WITH*)
 and sem_fun_header header =
@@ -116,7 +113,7 @@ and sem_fun_header header =
     let func_entry = newFunction (id_make name) true in
     openScope();
     sem_formal_defs (func_entry) (func_type) (formal_defs);
-    printSymbolTable ();
+
     func_entry
 
 and sem_formal_defs func_entry func_type formal_defs =
@@ -174,16 +171,40 @@ and sem_inside_fun inside_fun func_entry =
   | NO_OTHER_DEF -> ()
 
 and sem_fun_decl func_decl =
-  let func_entry = sem_fun_header func_decl
-  in
-  forwardFunction func_entry;
-  printSymbolTable()
+  match func_decl.header_info with
+  | FunHeader (func_type, name, formal_defs) ->
+    let acc = find_param_list (formal_defs) ([])
+    in
+    function_declare name func_type acc
+
+
+and find_param_list (formal_defs) (acc) =
+  match formal_defs with
+  | [] -> acc
+  | (same_type_defs::rest) ->
+  let acc =
+    (
+      match same_type_defs.defs_info with
+      | SameTypeDefs (par_type, par_name) ->
+        fold_list_name (par_name) (par_type) (acc)
+      | SameTypeDefsByRef (par_type, par_name) ->
+        fold_list_name (par_name) (par_type) (acc)
+    )
+    in
+    find_param_list (rest) (acc)
+
+and fold_list_name (par_name) (par_type) (acc) =
+  match par_name with
+  | [] -> acc
+  | (def :: rest) ->
+    fold_list_name (rest) (par_type)  ((def, par_type) :: acc)
+
 
 (*we will use var_decl position after newVariable with TRY WITH*)
 
 and sem_var_decl var_decl func_entry =
   match var_decl.var_info with
-  | (_, []) ->  printSymbolTable ();
+  | (_, []) -> ()
   | (var_type, name::rest) ->
     let v1 = newVariable (id_make name) var_type func_entry.entry_info true
     in
@@ -228,50 +249,69 @@ and sem_simple simple =
     check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (simple.simple_error_pos)
 
   | Simple_call call ->
+    (
     let call_entry = sem_call (call) (simple.simple_error_pos) in
-    ignore call_entry(*call = (string * ast_expr list)*)
+     begin
+      match call_entry.entry_info with
+      | ENTRY_function  function_info -> call.call_depth <- call_entry.entry_scope.sco_nesting
+     end;
+     ignore(call_entry)
+
+    )
+
 
 
 (*we will use call position after lookupEntry with TRY WITH*)
 
 (*Returns an entry*)
 and sem_call call (startpos, endpos) =
-  match call with
+  match call.call_info with
   | (call_name, call_expr_list) ->
-    let call_entry = lookupEntry (id_make call_name) LOOKUP_ALL_SCOPES true in
-    (
+    try
+      let call_entry = lookupEntry (id_make call_name) LOOKUP_ALL_SCOPES true in
       (
-      let expr_entry_list : Symbol.entry list = List.rev (sem_expr_list (call_expr_list) ([])) in
-          check_parameters (call_entry, call_expr_list, expr_entry_list) (startpos, endpos)
-      );
-      call_entry
-    )
+        (
+        let expr_entry_list : Symbol.entry list = List.rev (sem_expr_list (call_expr_list) ([])) in
+            check_parameters (call_entry, call_expr_list, expr_entry_list) (startpos, endpos)
+        );
+
+        call_entry
+      )
+    with Exit ->
+      fn_id_error call_name (startpos, endpos)
+
 (*Returns an entry*)
 and sem_atom atom =
   match atom.atom_info with
   | A_var var_atom ->
-    let atom_entry = lookupEntry (id_make var_atom) LOOKUP_ALL_SCOPES true in
+    (try
     (
+      let atom_entry = lookupEntry (id_make var_atom) LOOKUP_ALL_SCOPES true in
       (
-      match atom_entry.entry_info with
-      | ENTRY_variable variable_info ->
-          atom.atom_frame_place <- variable_info.variable_frame_place;
-          atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
-          atom.atom_byrefFlag <- false
-      | ENTRY_parameter parameter_info ->
-          atom.atom_frame_place <- parameter_info.parameter_frame_place;
-          atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
-          atom.atom_byrefFlag <-
-            (
-              match parameter_info.parameter_mode with
-              | PASS_BY_VALUE -> false
-              | PASS_BY_REFERENCE -> true
+        (
+        match atom_entry.entry_info with
+        | ENTRY_variable variable_info ->
+            atom.atom_frame_place <- variable_info.variable_frame_place;
+            atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
+            atom.atom_byrefFlag <- false
+        | ENTRY_parameter parameter_info ->
+            atom.atom_frame_place <- parameter_info.parameter_frame_place;
+            atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
+            atom.atom_byrefFlag <-
+              (
+                match parameter_info.parameter_mode with
+                | PASS_BY_VALUE -> false
+                | PASS_BY_REFERENCE -> true
 
-            )
+              )
 
-      | _ -> raise TypeError
-      );
-      atom_entry
+        | _ -> raise TypeError
+        );
+        atom_entry
+      )
+    )
+    with Exit ->
+        id_error var_atom atom.atom_error_pos
     )
   (*| A_structure (stru_atom, stru_expr) -> sem_struct (stru_atom) (stru_expr)*)
   | A_structure (_, _) -> sem_struct atom
@@ -293,22 +333,30 @@ and sem_struct atom =
 and get_structure_entry atom =
   match atom.atom_info with
   | A_var var_atom ->
-  let atom_entry = lookupEntry (id_make var_atom) LOOKUP_ALL_SCOPES true in
-  (
     (
-      match atom_entry.entry_info with
-      | ENTRY_variable variable_info ->
-          atom.atom_frame_place <- variable_info.variable_frame_place;
-          atom.atom_depth <- atom_entry.entry_scope.sco_nesting
+      try
+      (
+      let atom_entry = lookupEntry (id_make var_atom) LOOKUP_ALL_SCOPES true in
+      (
+        (
+          match atom_entry.entry_info with
+          | ENTRY_variable variable_info ->
+              atom.atom_frame_place <- variable_info.variable_frame_place;
+              atom.atom_depth <- atom_entry.entry_scope.sco_nesting
 
-      | ENTRY_parameter parameter_info ->
-          atom.atom_frame_place <- parameter_info.parameter_frame_place;
-          atom.atom_depth <- atom_entry.entry_scope.sco_nesting
+          | ENTRY_parameter parameter_info ->
+              atom.atom_frame_place <- parameter_info.parameter_frame_place;
+              atom.atom_depth <- atom_entry.entry_scope.sco_nesting
 
-      | _ -> raise TypeError
-      );
-    atom_entry
-  )
+          | _ -> raise TypeError
+          );
+        atom_entry
+      )
+    )
+    with Exit ->
+      id_error var_atom atom.atom_error_pos
+    )
+
   | A_structure (stru_atom, expr) ->
     let expr_entry_type = get_entry_type (sem_expr expr) in
     let expr_type = get_expr_type (expr.expr_info) (expr_entry_type) in

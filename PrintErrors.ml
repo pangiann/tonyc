@@ -174,6 +174,8 @@ let missing_rbracket_new_error (startpos, endpos) =
 
                           (*SEMANTIC ERRORS*)
 
+
+
 let atom_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Invalid atom expression";
@@ -215,6 +217,18 @@ let few_arguments (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Too few arguments.";
   raise Terminate
+
+let id_error id (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Wrong or undeclared identifier: The given identifier \"%s\" does \
+   not correspond to a declared variable or a parameter." id;
+   raise Terminate
+
+let fn_id_error id (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "The given identifier \"%s\" does not correspond to \
+  	 a function." id;
+    raise Terminate
 
 let parameter_type_error par_type expr_type (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
