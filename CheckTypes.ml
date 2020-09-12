@@ -82,7 +82,6 @@ let check_type_assignment (atom) (atom_entry) (expr) (expr_entry) (startpos, end
 
 (* check parameters types of a function call, gets both a LIST ENTRIES *)
 and check_parameters (call_entry, expr_list, entry_list) (startpos, endpos) =
-
   match call_entry.entry_info with
   | ENTRY_function (func_info) ->
 
@@ -92,9 +91,14 @@ and check_parameters (call_entry, expr_list, entry_list) (startpos, endpos) =
       match param_list_entry, expr_list, entry_list with
       | [],  [x], _ ->
           many_arguments (startpos,endpos)
+      | [], (expr::exprs), _ ->
+          many_arguments (startpos,endpos)
       | [x], [],  _ ->
           few_arguments (startpos,endpos)
+      | (par::pars), [], _ ->
+          few_arguments (startpos,endpos)
       | [],  [],  _ -> ()
+
       | (par::pars), (expr::exprs), (entry::entries) ->
         ignore(note_by_ref par expr);
         let par_type = get_entry_type par in

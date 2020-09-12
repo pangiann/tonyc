@@ -224,10 +224,27 @@ let id_error id (startpos, endpos) =
    not correspond to a declared variable or a parameter." id;
    raise Terminate
 
+let duplicate_error id (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Duplicate identifier: The given identifier \"%s\" corresponds \
+   to a declared variable or a parameter." id;
+   raise Terminate
+
+let duplicate_fn_error id (startpos, endpos) =
+ print_position (err_formatter) (position_context (startpos) (endpos));
+ error "Duplicate function: The given function \"%s\" corresponds \
+  to an already declared function." id;
+  raise Terminate
+
 let fn_id_error id (startpos, endpos) =
     print_position (err_formatter) (position_context (startpos) (endpos));
     error "The given identifier \"%s\" does not correspond to \
   	 a function." id;
+    raise Terminate
+
+let main_func_error (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "Main function is not properely defined, usage: def main():";
     raise Terminate
 
 let parameter_type_error par_type expr_type (startpos, endpos) =

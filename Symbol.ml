@@ -152,7 +152,7 @@ let newEntry id inf func_entry_info err =
     e
   with Failure_NewEntry e ->
     error "duplicate identifier %a" pretty_id id;
-    e
+    raise Exit
 
 let lookupEntry id how err =
   let scc = !currentScope in
@@ -191,12 +191,14 @@ let newVariable id typ func_entry err =
 
 let newFunction id err =
   try
-    let e = lookupEntry id LOOKUP_CURRENT_SCOPE false in
+    let e = lookupEntry id LOOKUP_ALL_SCOPES false in
+    Printf.printf "here we are bitches\n";
     match e.entry_info with
     | ENTRY_function inf when inf.function_isForward ->
         inf.function_isForward <- false;
         inf.function_pstatus <- PARDEF_CHECK;
         inf.function_redeflist <- inf.function_paramlist;
+        Printf.printf "hello\n";
         e
     | _ ->
         if err then
@@ -230,6 +232,7 @@ let newParameter id typ mode f  err =
           inf.function_paramlist <- e :: inf.function_paramlist;
           e
       | PARDEF_CHECK -> begin
+          Printf.printf "we are here\n";
           match inf.function_redeflist with
           | p :: ps -> begin
               inf.function_redeflist <- ps;

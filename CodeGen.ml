@@ -77,12 +77,12 @@ and codegen_frame_search fr depth =
             codegen_frame_search new_fr (depth - 1)
         )
 
-let rec gen_maybe_program ast_tree =
+let rec gen_maybe_program ast_tree opts =
   match ast_tree with
   | None ->
     eprintf "%s@." "AST IS EMPTY"
   | Some tree ->
-    gen_ast tree
+    gen_ast (tree) (opts)
 
 and library_functions () =
   let ft = function_type (void_type) [| int_type |] in
@@ -115,10 +115,6 @@ and library_functions () =
   ignore(lib_func_list := "geti"::(!lib_func_list));
 
   let ft = function_type (char_type) [| |] in
-  ignore(declare_function "readString" ft the_module);
-  ignore(lib_func_list := "readString"::(!lib_func_list));
-
-  let ft = function_type (char_type) [| |] in
   ignore(declare_function "getc" ft the_module);
   ignore(lib_func_list := "getc"::(!lib_func_list));
 
@@ -129,12 +125,17 @@ and library_functions () =
 
 
   let ft = function_type (int_type) [| char_type |] in
-  ignore(declare_function "extend" ft the_module);
-  ignore(lib_func_list := "extend"::(!lib_func_list));
+  ignore(declare_function "ord" ft the_module);
+  ignore(lib_func_list := "ord"::(!lib_func_list));
 
   let ft = function_type (char_type) [| int_type |] in
-  ignore(declare_function "shrink" ft the_module);
-  ignore(lib_func_list := "shrink"::(!lib_func_list));
+  ignore(declare_function "chr" ft the_module);
+  ignore(lib_func_list := "chr"::(!lib_func_list));
+
+
+  let ft = function_type (int_type) [| int_type |] in
+  ignore(declare_function "abs" ft the_module);
+  ignore(lib_func_list := "abs"::(!lib_func_list));
 
   let ft = function_type (int_type) [| pointer_type char_type |] in
   ignore(declare_function "strlen" ft the_module);
@@ -154,7 +155,26 @@ and library_functions () =
 
   ()
 
-and gen_ast ast_tree =
+and add_opts pm =
+    let opts = [
+        add_ipsccp; add_memory_to_register_promotion; add_dead_arg_elimination;
+        add_instruction_combination; add_cfg_simplification;
+        add_function_inlining; add_function_attrs; add_scalar_repl_aggregation;
+        add_early_cse; add_cfg_simplification; add_instruction_combination;
+        add_tail_call_elimination; add_reassociation; add_loop_rotation;
+        add_loop_unswitch; add_instruction_combination; add_cfg_simplification;
+        add_ind_var_simplification; add_loop_idiom; add_loop_deletion;
+        add_loop_unroll; add_gvn; add_memcpy_opt; add_sccp; add_licm;
+        add_global_optimizer; add_global_dce;
+        add_aggressive_dce; add_cfg_simplification; add_instruction_combination;
+        add_dead_store_elimination; add_loop_vectorize; add_slp_vectorize;
+        add_strip_dead_prototypes; add_global_dce; add_constant_propagation;
+        add_cfg_simplification
+    ] in
+    List.iter (fun f -> f pm) opts
+
+
+and gen_ast ast_tree opts =
 
 
   (*declare library functions*)
@@ -188,22 +208,29 @@ and gen_ast ast_tree =
   (frame_counter := !frame_counter - 1);
   (* Verify *)
 
-  Llvm_analysis.assert_valid_module the_module;
 
   (* Print out the IR *)
-  Llvm.print_module "a.ll" the_module
+  (*Llvm.print_module "a.ll" the_module*)
+  (if opts then
+    let mpm = PassManager.create () in
+    add_opts mpm;
+    ignore(PassManager.run_module the_module mpm));
+
+  (*Llvm_analysis.assert_valid_module the_module;*)
 
 
 and gen_fun_def ast current_fr param_arr  =
   match ast.func_info with
   | Fundef (header, inside_fun_list, stmts) ->
     let depth_of_func = ast.func_depth in
-    let (func_entry_block, the_function, func_name) = gen_fun_header (header)  in
+    let (func_entry_block, the_function, func_name) = gen_fun_header (header) (param_arr)  in
 
     (* local vars and parameters*)
     let prev_rbp_type_list =
       if func_name = "main" then [pointer_type (int_type)]
-      else  [pointer_type (Stack.top type_stack)]
+      else
+        [type_of (Array.get param_arr 0)]
+
     in
     let var_type_list =  (List.map gen_same_type_def header.var_type_list) in
     let frame_type_array = Array.of_list (List.concat [prev_rbp_type_list; List.rev (var_type_list)]) in
@@ -219,9 +246,6 @@ and gen_fun_def ast current_fr param_arr  =
 			Array.iteri (fun i a ->
 				set_value_name "par" a;
 			) par_arr;
-
-    let size = Array.length par_arr in
-        Printf.printf "array len = %s\n"(string_of_int (size));
 
     let store_param param =
       let elem_ptr = build_struct_gep new_frame !i "frame_elem" builder2 in
@@ -258,15 +282,14 @@ and gen_fun_def ast current_fr param_arr  =
   (*Llvm_analysis.assert_valid_function the_function*)
 
 (*return func entry basic block and the function *)
-and gen_fun_header header  =
+and gen_fun_header header (param_arr)  =
   match header.header_info with
   | FunHeader(func_type, name, formal_defs) ->
     (frame_counter := !frame_counter + 1);
     if ((name <> "main") && (search_func (!prev_decl_func_list) (name)) <> true) then
     (
-      Printf.printf "hello fuck i'm %s\n" name;
       let llvm_param_type_arr = (gen_formal_defs formal_defs [| |]) in
-      let frame_pointer_type = [pointer_type (Stack.top type_stack)] in
+      let frame_pointer_type =  [type_of (Array.get param_arr 0)] in
       let final_par_typ_arr = Array.append  (Array.of_list frame_pointer_type) llvm_param_type_arr in
       let func_t = function_type (to_llvm_type func_type) (final_par_typ_arr) in
       let func = declare_function name func_t the_module in
@@ -276,7 +299,6 @@ and gen_fun_header header  =
     )
     else if ((search_func (!prev_decl_func_list) (name)) <> false) then
     (
-      Printf.printf "we are inside header with function %s\n" name;
       let func = my_lookup_function name in
       let bb = append_block context "func_entry" func in
       ignore(position_at_end bb builder);
@@ -284,7 +306,6 @@ and gen_fun_header header  =
     )
     else
     (
-      Printf.printf "helloooooo i'm %s\n" name;
       let llvm_param_type_arr = (gen_formal_defs formal_defs [| |]) in
       let func_t = function_type (to_llvm_type func_type) (llvm_param_type_arr) in
       let func = declare_function name func_t the_module in
@@ -341,14 +362,13 @@ and gen_inside_fun inside_fun current_fr =
     ()
   | I_Fundecl (func_decl) ->
    begin
-    Printf.printf "okay we are now declaring our function\n";
     match func_decl.header_info with
       | FunHeader(func_type, name, formal_defs) ->
         let llvm_param_type_arr = (gen_formal_defs formal_defs [| |]) in
         let frame_pointer_type = [pointer_type (Stack.top type_stack)] in
         let final_par_typ_arr = Array.append  (Array.of_list frame_pointer_type) llvm_param_type_arr in
         let func_t = function_type (to_llvm_type func_type) (final_par_typ_arr) in
-        let func = declare_function name func_t the_module in
+        ignore(declare_function name func_t the_module);
         ignore(prev_decl_func_list := name::(!prev_decl_func_list))
    end
   | I_Vardecl (var_decl) -> ()
@@ -531,8 +551,6 @@ and gen_simple simple frame func_name (current_block) (depth_of_func) =
       match atom.atom_info with
       | A_var var_atom ->
       (
-        Printf.printf "func depth = %d and atom_depth = %d\n" depth_of_func atom.atom_depth;
-        Printf.printf "frame counter = %d\n" !frame_counter;
         let parent_frame = codegen_frame_search frame  (depth_of_func - atom.atom_depth) in
         let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "var" builder in
           if (atom.atom_byrefFlag <> true) then
@@ -564,26 +582,22 @@ and gen_simple simple frame func_name (current_block) (depth_of_func) =
            if (search_func (!rec_func_list) (name)) <> true then
            (
             (* if not check if we've already declared this function *)
-             if (search_func (!prev_decl_func_list) (name)) <> true then
-             (
-                if (search_func (!decl_func_list) (name)) <> true then
-                  gen_simple_call param_list frame current_block name
-                else
-                  gen_simple_decl_call param_list frame current_block name
-              )
+             if (search_func (!decl_func_list) (name)) <> true then
+                  gen_simple_call param_list frame current_block name depth_of_func call_atom.call_depth
               else
-                 gen_simple_call param_list frame current_block name
+                 gen_simple_decl_call param_list frame current_block name depth_of_func call_atom.call_depth
            )
            else
-              gen_simple_rec_call param_list frame current_block name call_atom.call_depth
+              gen_simple_rec_call param_list frame current_block name depth_of_func call_atom.call_depth
          )
          else
            gen_simple_lib_call param_list frame current_block name
        end
 
 
-and gen_simple_call param_list frame current_block name =
-  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+and gen_simple_call param_list frame current_block name depth_of_func call_depth =
+  let param_frame = codegen_frame_search  frame (depth_of_func - call_depth)  in
+  let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in (*array of llvalues*)
   ignore(rec_func_list := name::(!rec_func_list));
   ignore(decl_func_list := name::(!decl_func_list));
   let func_def = H.find !funtable (id_make name) in
@@ -595,24 +609,23 @@ and gen_simple_call param_list frame current_block name =
 
 
 
-and gen_simple_decl_call param_list frame current_block name =
-  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
-  Printf.printf "okay we are in gen simple decl call\n";
+and gen_simple_decl_call param_list frame current_block name depth_of_func call_depth =
+  let param_frame = codegen_frame_search  frame (depth_of_func - call_depth) in
+  let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in (*array of llvalues*)
   let ll_func = my_lookup_function name in
     ignore(build_call ll_func param_arr "" builder);
-    Printf.printf "byeeee\n"
 
 
 
 and gen_simple_lib_call param_list frame current_block name =
-  let param_arr = Array.of_list (param_list) in (*array of llvalues*)
+  let param_arr = Array.of_list (List.rev param_list) in (*array of llvalues*)
    ignore(position_at_end current_block builder);
   let ll_func = my_lookup_function name in
    ignore(build_call ll_func param_arr "" builder)
 
 
-and gen_simple_rec_call param_list frame current_block name call_depth =
-  let param_frame = codegen_frame_search  frame (!frame_counter - call_depth)  in
+and gen_simple_rec_call param_list frame current_block name depth_of_func call_depth =
+  let param_frame = codegen_frame_search  frame (depth_of_func - call_depth)  in
   let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
   ignore(position_at_end current_block builder);
   let ll_func = my_lookup_function name in
@@ -641,8 +654,6 @@ and gen_expr_list expr_list acc frame current_block (depth_of_func) =
             let var_atom_elemptr = gen_pass_array atom frame current_block (depth_of_func) in
               gen_expr_list (xs) (var_atom_elemptr :: acc) frame current_block (depth_of_func)
           | _ ->
-            Printf.printf "func depth = %d and atom_depth = %d\n" depth_of_func atom.atom_depth;
-            Printf.printf "frame counter = %d\n" !frame_counter;
             let parent_frame = codegen_frame_search frame (depth_of_func - atom.atom_depth) in
             let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "" builder in
               gen_expr_list (xs) (var_atom_elemptr :: acc) frame current_block (depth_of_func)
@@ -741,12 +752,12 @@ and gen_atom frame atom current_block (depth_of_func) =
           (
            (* if not check if we've already declared this function *)
             if (search_func (!decl_func_list) (name)) <> true then
-               gen_atom_call param_list frame current_block name
+               gen_atom_call param_list frame current_block name depth_of_func call_atom.call_depth
             else
-               gen_atom_decl_call param_list frame current_block name
+               gen_atom_decl_call param_list frame current_block name depth_of_func call_atom.call_depth
           )
           else
-             gen_atom_rec_call param_list frame current_block name
+             gen_atom_rec_call param_list frame current_block name depth_of_func call_atom.call_depth
          )
          else
            gen_atom_lib_call param_list frame current_block name
@@ -761,14 +772,11 @@ and gen_atom frame atom current_block (depth_of_func) =
 			                    build_in_bounds_gep p [| const_int int_type 0; const_int int_type 0 |] "arr_strtmp" builder
 (*---------------------------SOSSSS--------------------------------*)
 
-(* here we first load the address of array where exists in stack frame *)
-(* and then we load the value of the requested element from heap *)
-(* e.g. we need x[3] , we load x ptr from stack and then we load 3rd element of array *)
-(* this function is recursive so it works for every dimension *)
 
 
-and gen_atom_call param_list frame current_block name =
-  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+and gen_atom_call param_list frame current_block name depth_of_func call_depth =
+  let param_frame = codegen_frame_search  frame (depth_of_func - call_depth) in
+  let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in (*array of llvalues*)
     ignore(rec_func_list := name::(!rec_func_list));
     ignore(decl_func_list := name::(!decl_func_list));
   let func_def = H.find !funtable (id_make name) in
@@ -777,28 +785,34 @@ and gen_atom_call param_list frame current_block name =
   let ll_func = my_lookup_function name in
     build_call ll_func param_arr "" builder
 
-and gen_atom_decl_call param_list frame current_block name =
-  let param_arr = Array.of_list (frame :: (List.rev param_list)) in (*array of llvalues*)
+and gen_atom_decl_call param_list frame current_block name depth_of_func call_depth =
+  let param_frame = codegen_frame_search frame (depth_of_func - call_depth) in
+  let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in (*array of llvalues*)
   let ll_func = my_lookup_function name in
     build_call ll_func param_arr "" builder
 
 
 and gen_atom_lib_call param_list frame current_block name =
-  let param_arr = Array.of_list (param_list) in (*array of llvalues*)
+  let param_arr = Array.of_list (List.rev param_list) in (*array of llvalues*)
     ignore(position_at_end current_block builder);
   let ll_func = my_lookup_function name in
     build_call ll_func param_arr "" builder
 
 
-and gen_atom_rec_call param_list frame current_block name =
-  let param_frame_ptr = build_struct_gep frame 0 "" builder in
-  let param_frame = build_load param_frame_ptr "loadtmp" builder in
+and gen_atom_rec_call param_list frame current_block name depth_of_func call_depth =
+  let param_frame = codegen_frame_search  frame (depth_of_func - call_depth) in
   let param_arr = Array.of_list (param_frame :: (List.rev param_list)) in
     ignore(position_at_end current_block builder);
   let ll_func = my_lookup_function name in
     build_call ll_func param_arr "" builder
 
 
+
+
+(* here we first load the address of array where exists in stack frame *)
+(* and then we load the value of the requested element from heap *)
+(* e.g. we need x[3] , we load x ptr from stack and then we load 3rd element of array *)
+(* this function is recursive so it works for every dimension *)
 
 and gen_struct frame atom current_block (depth_of_func) =
   match atom.atom_info with

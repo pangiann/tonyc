@@ -24,16 +24,15 @@ let function_declare func_name func_type params_list =
   let rec add_params p_list func_entry =
     match p_list with
     | [] -> ()
-    | ((par_name, par_type)::rest) ->
+    | ((par_name, par_type, pass_type)::rest) ->
 
       (*Printf.printf "%s -> %s\n" par_name (typeToString par_type);*)
-      ignore(newParameter (id_make par_name) par_type PASS_BY_VALUE func_entry true);
+      ignore(newParameter (id_make par_name) par_type pass_type func_entry true);
       add_params rest func_entry
   in
   let func_entry = newFunction (id_make func_name) true in
   (
     openScope();
-    (*Printf.printf "%s\n" func_name;*)
     add_params params_list func_entry;
     forwardFunction func_entry;
     functionHeaderEnd (func_entry) (func_type);
@@ -42,25 +41,24 @@ let function_declare func_name func_type params_list =
 
 let library_functions () =
 
-  ignore(function_declare "puti" TYPE_none (("n", TYPE_int)::[]) );
-
-  ignore(function_declare "putb" TYPE_none (("b", TYPE_bool)::[]) );
-  ignore(function_declare "putc" TYPE_none (("c", TYPE_char)::[]) );
-  ignore(function_declare "puts" TYPE_none (("s", TYPE_array(TYPE_char,0))::[]) );
+  ignore(function_declare "puti" TYPE_none (("n", TYPE_int, PASS_BY_VALUE)::[]) );
+  ignore(function_declare "putb" TYPE_none (("b", TYPE_bool, PASS_BY_VALUE)::[]) );
+  ignore(function_declare "putc" TYPE_none (("c", TYPE_char, PASS_BY_VALUE)::[]) );
+  ignore(function_declare "puts" TYPE_none (("s", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
 
   ignore(function_declare "geti" TYPE_int ([]) );
   ignore(function_declare "getb" TYPE_bool ([]) );
   ignore(function_declare "getc" TYPE_char ([]) );
-  ignore(function_declare "gets" TYPE_none (("n1", TYPE_int)::("s", TYPE_array(TYPE_char,0))::[]) );
+  ignore(function_declare "gets" TYPE_none (("n1", TYPE_int, PASS_BY_VALUE)::("s", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
 
-  ignore(function_declare "abs" TYPE_int (("n2", TYPE_int)::[]) );
-  ignore(function_declare "ord" TYPE_int (("c", TYPE_char)::[]) );
-  ignore(function_declare "chr" TYPE_char (("n", TYPE_int)::[]) );
+  ignore(function_declare "abs" TYPE_int (("n2", TYPE_int, PASS_BY_VALUE)::[]) );
+  ignore(function_declare "ord" TYPE_int (("c", TYPE_char, PASS_BY_VALUE)::[]) );
+  ignore(function_declare "chr" TYPE_char (("n", TYPE_int, PASS_BY_VALUE)::[]) );
 
-  ignore(function_declare "strlen" TYPE_int (("s", TYPE_array(TYPE_char,0))::[]) );
-  ignore(function_declare "strcmp" TYPE_int (("s2", TYPE_array(TYPE_char,0))::("s1", TYPE_array(TYPE_char,0))::[]) );
-  ignore(function_declare "strcpy" TYPE_none (("src", TYPE_array(TYPE_char,0))::("trg", TYPE_array(TYPE_char,0))::[]) );
-  ignore(function_declare "strcat" TYPE_none (("src", TYPE_array(TYPE_char,0))::("trg", TYPE_array(TYPE_char,0))::[]) );
+  ignore(function_declare "strlen" TYPE_int (("s", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
+  ignore(function_declare "strcmp" TYPE_int (("s2", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::("s1", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
+  ignore(function_declare "strcpy" TYPE_none (("src", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::("trg", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
+  ignore(function_declare "strcat" TYPE_none (("src", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::("trg", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
 ;;
 
 let rec sem_ast ast_tree =
@@ -80,6 +78,15 @@ and sem_program ast_tree =
   library_functions();
 
   openScope();
+  (match ast_tree.func_info with
+  | Fundef (header, _, _) ->
+    begin
+      match header.header_info with
+      | FunHeader (func_type, name, formal_defs) ->
+        if (func_name (header) <> "main" || func_type <> TYPE_none || formal_defs <> []) then
+          main_func_error header.header_error_pos
+    end
+  );
   sem_fun_def ast_tree;
   closeScope()
 
@@ -110,11 +117,13 @@ and sem_fun_def ast =
 and sem_fun_header header =
   match header.header_info with
   | FunHeader (func_type, name, formal_defs) ->
+   try
     let func_entry = newFunction (id_make name) true in
     openScope();
     sem_formal_defs (func_entry) (func_type) (formal_defs);
-
     func_entry
+  with Exit ->
+    duplicate_fn_error name header.header_error_pos
 
 and sem_formal_defs func_entry func_type formal_defs =
   match formal_defs with
@@ -186,18 +195,18 @@ and find_param_list (formal_defs) (acc) =
     (
       match same_type_defs.defs_info with
       | SameTypeDefs (par_type, par_name) ->
-        fold_list_name (par_name) (par_type) (acc)
+        fold_list_name (par_name) (par_type) (acc) (PASS_BY_VALUE)
       | SameTypeDefsByRef (par_type, par_name) ->
-        fold_list_name (par_name) (par_type) (acc)
+        fold_list_name (par_name) (par_type) (acc) (PASS_BY_REFERENCE)
     )
     in
     find_param_list (rest) (acc)
 
-and fold_list_name (par_name) (par_type) (acc) =
+and fold_list_name (par_name) (par_type) (acc) (pass_type) =
   match par_name with
   | [] -> acc
   | (def :: rest) ->
-    fold_list_name (rest) (par_type)  ((def, par_type) :: acc)
+    fold_list_name (rest) (par_type)  ((def, par_type, pass_type) :: acc) (pass_type)
 
 
 (*we will use var_decl position after newVariable with TRY WITH*)
@@ -206,10 +215,14 @@ and sem_var_decl var_decl func_entry =
   match var_decl.var_info with
   | (_, []) -> ()
   | (var_type, name::rest) ->
-    let v1 = newVariable (id_make name) var_type func_entry.entry_info true
-    in
-    ignore v1;
-    sem_var_decl { var_info = (var_type, rest); var_error_pos = var_decl.var_error_pos } func_entry
+    try
+      let v1 = newVariable (id_make name) var_type func_entry.entry_info true
+      in
+      ignore v1;
+      sem_var_decl { var_info = (var_type, rest); var_error_pos = var_decl.var_error_pos } func_entry
+    with Exit ->
+      duplicate_error name (var_decl.var_error_pos)
+
 
 and sem_stmts stmts fun_name =
   match stmts with
@@ -274,7 +287,6 @@ and sem_call call (startpos, endpos) =
         let expr_entry_list : Symbol.entry list = List.rev (sem_expr_list (call_expr_list) ([])) in
             check_parameters (call_entry, call_expr_list, expr_entry_list) (startpos, endpos)
         );
-
         call_entry
       )
     with Exit ->
@@ -317,7 +329,13 @@ and sem_atom atom =
   | A_structure (_, _) -> sem_struct atom
   (* ------------------------------------------ *)
   (* DEN MPOREI NA EINAI LVALUES *)
-  | A_call call_atom -> sem_call call_atom (atom.atom_error_pos)
+  | A_call call_atom ->
+    let call_entry = sem_call call_atom (atom.atom_error_pos) in
+    begin
+     match call_entry.entry_info with
+     | ENTRY_function  function_info -> call_atom.call_depth <- call_entry.entry_scope.sco_nesting
+    end;
+    call_entry
   | A_string str_atom -> newTemporary (TYPE_array (TYPE_char, -1))
 
 and sem_struct atom =
