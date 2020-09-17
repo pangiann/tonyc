@@ -18,7 +18,26 @@ let rec typeToString t = match t with
   | TYPE_array (t, _) -> String.concat " " [(typeToString t); "array"]
   | TYPE_list t       -> String.concat " " [(typeToString t); "list"]
 
+
+                        (*LEXING ERRORS*)
+let invalid_char_error (chr) (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "Invalid character %c" chr;
+    raise Terminate
+let unclosed_comment_error (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "Unterminated comment";
+    raise Terminate
+
+let not_terminated_char (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "Unterminated character";
+    raise Terminate
+
                         (*SYNTAX ERRORS*)
+
+
+
 
 let missing_colon_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
@@ -245,6 +264,11 @@ let fn_id_error id (startpos, endpos) =
 let main_func_error (startpos, endpos) =
     print_position (err_formatter) (position_context (startpos) (endpos));
     error "Main function is not properely defined, usage: def main():";
+    raise Terminate
+
+let no_return_stmt_error (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "If a return type exists, last statement must be in the form of: return <expr>";
     raise Terminate
 
 let parameter_type_error par_type expr_type (startpos, endpos) =

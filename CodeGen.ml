@@ -216,7 +216,7 @@ and gen_ast ast_tree opts =
     add_opts mpm;
     ignore(PassManager.run_module the_module mpm));
 
-  (*Llvm_analysis.assert_valid_module the_module;*)
+  Llvm_analysis.assert_valid_module the_module;
 
 
 and gen_fun_def ast current_fr param_arr  =
@@ -349,15 +349,8 @@ and gen_inside_fun inside_fun current_fr =
         (
           match header_prop.header_info with
           | FunHeader(_, name, _) ->
-(*
-           if (search_func (!prev_decl_func_list) (name)) <> true then
-           (
-              Printf.printf "my name is %s\n" name;*)
               H.add !funtable (id_make name) func_def
-           (*)
-           else
-              ignore(gen_fun_def (func_def) (current_fr) ([||]))
-        *))
+        )
     end;
     ()
   | I_Fundecl (func_decl) ->
@@ -396,7 +389,7 @@ and gen_stmts frame stmts (func_name) (current_block) (depth_of_func) =
     )
 
 and gen_stmt frame stmt (func_name) (current_block) (depth_of_func) =
-  match stmt with
+  match stmt.stmt_info with
   | S_simple simple -> ignore(gen_simple simple (frame) (func_name) (insertion_block builder) (depth_of_func))
   | S_exit -> ignore(build_ret_void builder)
   | S_return expr ->

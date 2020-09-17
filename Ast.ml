@@ -3,7 +3,6 @@ open Types
 open Lexing
 open Symbol
 
-
 type var = string
 
 type unary_op = O_minus | O_not | O_plus
@@ -40,6 +39,8 @@ and expr_properties = {
   mutable expr_error_pos : Lexing.position * Lexing.position;
   mutable expr_type : typ;
   mutable expr_callbyref : bool;
+
+
 }
 
 and atom_properties = {
@@ -49,6 +50,8 @@ and atom_properties = {
   mutable atom_depth: int;
   mutable atom_byrefFlag : bool;
   mutable atom_callbyref : bool;
+
+
 }
 
 and simple_properties = {
@@ -57,13 +60,13 @@ and simple_properties = {
 }
 
 
-and if_stmt = if_cond * ( ast_stmt list * (if_cond * ast_stmt list) list option * ast_stmt list option)
+and if_stmt = if_cond * ( stmt_properties list * (if_cond * stmt_properties list) list option * stmt_properties list option)
 
 and if_cond = expr_properties
 
 and for_stmt = for_head * for_body
 
-and for_body = ast_stmt list
+and for_body = stmt_properties list
 
 and for_head = simple_properties list * expr_properties * simple_properties list
 
@@ -71,13 +74,12 @@ and call_atom =  {
   mutable call_info : string * expr_properties list;
   mutable call_depth : int;
 }
+
 and ast_func_def = {
     mutable func_info :  func_def;
     mutable func_depth : int;
 }
-and func_def = Fundef of header_properties * ast_inside_func_def list * ast_stmt list
-
-
+and func_def = Fundef of header_properties * ast_inside_func_def list * stmt_properties list
 and ast_header =
     FunHeader of typ * string * same_type_defs_properties list
 
@@ -91,6 +93,10 @@ and ast_inside_func_def = NO_OTHER_DEF
 
 and ast_func_decl = header_properties
 
+and stmt_properties = {
+    mutable stmt_info : ast_stmt;
+    mutable stmt_error_pos : Lexing.position * Lexing.position;
+}
 and ast_stmt = S_exit
              | S_return of expr_properties
              | S_if of if_stmt
@@ -113,7 +119,6 @@ and ast_expr = E_atom of atom_properties
              | E_true
              | E_false
              | E_const of int
-             (*| E_var of var*)
              | E_character of char
              | E_binary_op  of expr_properties * binary_op * expr_properties
              | E_compare_op of expr_properties * compare_op * expr_properties
@@ -125,7 +130,6 @@ and ast_expr = E_atom of atom_properties
              | E_hashtag of expr_properties * expr_properties
              | E_head of expr_properties
              | E_tail of expr_properties
-
 
 
 let ast_tree = ref None

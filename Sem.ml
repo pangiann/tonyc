@@ -94,6 +94,10 @@ and func_name header =
   match header.header_info with
   |  FunHeader (_, x, _) -> x
 
+and func_type header =
+  match header.header_info with
+  | FunHeader (x, _, _) -> x
+
 (* na tsekaroume an to frame size einai swsto *)
 and sem_fun_def ast =
   match ast.func_info with
@@ -101,7 +105,11 @@ and sem_fun_def ast =
     let func_entry = sem_fun_header header in
     ast.func_depth <- func_entry.entry_scope.sco_nesting + 1;
     sem_inside_fun_list inside_fun_list func_entry;
-    sem_stmts  (stmts) (func_name header);
+    (if (func_type (header) <> TYPE_none) then
+      sem_stmts (stmts) (func_name header) (true)
+    else
+      sem_stmts (stmts) (func_name header) (false)
+    );
     header.var_type_list <-
       (
         match func_entry.entry_info with
@@ -224,16 +232,28 @@ and sem_var_decl var_decl func_entry =
       duplicate_error name (var_decl.var_error_pos)
 
 
-and sem_stmts stmts fun_name =
+and sem_stmts stmts fun_name ret_type =
   match stmts with
   | [] -> ()
+  | [last] -> (
+    if ret_type then
+      begin
+        match last.stmt_info with
+        | S_return expr -> sem_stmt last fun_name
+        | _ -> no_return_stmt_error last.stmt_error_pos
+      end
+    else (
+      sem_stmt last fun_name;
+      sem_stmts [] fun_name ret_type
+     )
+    )
   | stmt :: rest -> (
       sem_stmt stmt fun_name;
-      sem_stmts rest fun_name
+      sem_stmts rest fun_name ret_type
     )
 
 and sem_stmt stmt fun_name =
-  match stmt with
+  match stmt.stmt_info with
   | S_simple simple ->
     sem_simple simple
   | S_exit ->
@@ -403,7 +423,7 @@ and sem_if_stmt if_stmt fun_name =
 and sem_if_body if_body fun_name =
   match if_body with
   | (stmts, maybe_elif, maybe_else) ->
-    sem_stmts (stmts) (fun_name);
+    sem_stmts (stmts) (fun_name) (false);
     begin
       match maybe_elif with
       | None -> ()
@@ -412,7 +432,7 @@ and sem_if_body if_body fun_name =
     begin
       match maybe_else with
       | None -> ()
-      | Some (else_whole) -> sem_stmts (else_whole) (fun_name)
+      | Some (else_whole) -> sem_stmts (else_whole) (fun_name) (false)
     end
 
 and sem_elif_whole elif_whole (fun_name) =
@@ -427,13 +447,13 @@ and sem_elif elif (fun_name) =
   | (elif_cond, elif_body) ->
     (let elif_cond_entry = sem_expr (elif_cond)
      in check_cond_exp (elif_cond, elif_cond_entry));
-    sem_stmts (elif_body) (fun_name)
+    sem_stmts (elif_body) (fun_name) (false)
 
 and sem_for_stmt for_stmt fun_name =
   match for_stmt with
   | (for_head, for_body) ->
     sem_for_head (for_head);
-    sem_stmts    (for_body) (fun_name)
+    sem_stmts  (for_body) (fun_name) (false)
 
 (* Returns a tuple of (Simple entry list) * Expr entry * (Simple entry list) *)
 and sem_for_head for_head =

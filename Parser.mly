@@ -88,8 +88,8 @@
 
 %type <Ast.var_decl_properties> var_def
 
-%type <Ast.ast_stmt list> stmt_list
-%type <Ast.ast_stmt> stmt
+%type <Ast.stmt_properties list> stmt_list
+%type <Ast.stmt_properties> stmt
 
 %type <Ast.simple_properties> simple
 %type <Ast.simple_properties list> simple_list
@@ -127,12 +127,12 @@ inside_func_def : func_def  inside_func_def    { (I_Fundef($1)) :: $2 }
 stmt_list   : /*empty*/       { [] }
             | stmt stmt_list  { $1 :: $2 }
 
-stmt        : simple          { S_simple ($1) }
-            | T_exit          { S_exit }
-            | T_return expr   { S_return ($2) }
+stmt        : simple          { { stmt_info = S_simple ($1); stmt_error_pos = ($startpos, $endpos) } }
+            | T_exit          { { stmt_info = S_exit; stmt_error_pos = ($startpos, $endpos) }  }
+            | T_return expr   { { stmt_info = S_return ($2); stmt_error_pos = ($startpos, $endpos) } }
             | T_return error  { missing_return_expr ($startpos, $endpos); raise Terminate }
-            | if_whole        { S_if  ($1) }
-            | for_whole       { S_for ($1) }
+            | if_whole        { { stmt_info = S_if  ($1); stmt_error_pos = ($startpos, $endpos) } }
+            | for_whole       { { stmt_info = S_for ($1); stmt_error_pos = ($startpos, $endpos) } }
 
 for_whole : T_for for_head T_colon for_body  T_end  { ($2, $4) }
           | T_for for_head error                    { missing_colon_after_for_error ($startpos, $endpos); raise Terminate }
@@ -253,24 +253,9 @@ expr        : atom                                      { { expr_info = E_atom (
 
             | expr binary_op expr                       { { expr_info = E_binary_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
 
-/*
-            | expr T_plus expr                          { E_binary_op ($1, O_plus, $3)  }
-            | expr T_minus expr                         { E_binary_op ($1, O_minus, $3) }
-            | expr T_mul expr                           { E_binary_op ($1, O_mul, $3)   }
-            | expr T_div expr                           { E_binary_op ($1, O_div, $3)   }
-            | expr T_mod expr                           { E_binary_op ($1, O_mod, $3)   }
-
-*/
 
             | expr compare_op expr                      { { expr_info = E_compare_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
-/*
-            | expr T_equal expr                         { E_compare_op ($1, O_eq, $3)        }
-            | expr T_noteq expr                         { E_compare_op ($1, O_noteq,  $3)    }
-            | expr T_less expr                          { E_compare_op ($1, O_less,   $3)    }
-            | expr T_lesseq expr                        { E_compare_op ($1, O_lesseq, $3)    }
-            | expr T_greater expr                       { E_compare_op ($1, O_greater, $3)   }
-            | expr T_greatereq expr                     { E_compare_op ($1, O_greatereq, $3) }
-*/
+
 
             | T_true                                    { { expr_info = E_true; expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
             | T_false                                   { { expr_info = E_false; expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
@@ -278,10 +263,7 @@ expr        : atom                                      { { expr_info = E_atom (
             | T_not expr                                { { expr_info = E_unary_op (O_not, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
 
             | expr boolean_op expr                      { { expr_info = E_bool_op ($1, $2,  $3); expr_error_pos= ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
-/*
-            | expr T_or expr                            { { E_bool_op ($1, O_or,  $3) }
-            | expr T_and expr                           { { E_bool_op ($1, O_and, $3) }
-*/
+
             | expr binary_op error                      { invalid_binary_expr_error($startpos, $endpos); raise Terminate }
             | expr compare_op error                     { invalid_cmp_expr_error($startpos, $endpos); raise Terminate }
 

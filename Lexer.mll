@@ -1,9 +1,10 @@
 {
 open Lexing
 open Parser
-
-
-
+open PrintErrors
+open Error
+open Format
+exception Terminate
 
 (*  convert string to a list of chars *)
 let implode l =
@@ -21,6 +22,27 @@ let explode s =
     if i < 0 then l else exp (i - 1) (s.[i] :: l) in
    exp (String.length s - 1) []
 
+exception Not_Hex_Digit of char
+
+(* Checks if a character represents a hex value *)
+let is_hex ch = (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'Z')
+
+(* Returns the hexadecimal value of a character *)
+let hex_value ch position_start position_end = match ch with
+ | '0'..'9' -> Char.code ch - Char.code '0'
+ | 'a'..'f' -> Char.code ch - Char.code 'a' + 10
+ | 'A'..'F' -> Char.code ch - Char.code 'A' + 10
+ | _ as c -> let pos = position_context position_start position_end in
+             print_position err_formatter pos;
+             fatal "Not valid hex value";
+             raise Terminate
+
+(* Returns the ASCII code of a hex char of the form: '\xhh' *)
+let parse_hex str position_start position_end =
+ let h1 = hex_value str.[2] position_start position_end in
+ let h2 = hex_value str.[3] position_start position_end in
+ Char.chr (16 * h1 + h2)
+
 
 (*  increment lines *)
 let incr_linenum lexbuf =
@@ -30,15 +52,9 @@ let incr_linenum lexbuf =
     Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
     Lexing.pos_bol = pos.Lexing.pos_cnum;
   }
-  (*Printf.printf "our lines now are updated to: %d\n" pos.pos_lnum*)
 
 
-(* function for errors *)
-let error s start lexbuf =
-    Printf.printf "[--------------------------]\nline: %d char: %d -> %s\n[--------------------------]\n" (start.pos_lnum) (start.pos_cnum - start.pos_bol)  (s)
-(*  else
-    let pos = lexbuf.Lexing.lex_curr_p in
-      Printf.printf "[--------------------------]\nline: %d char: %d -> %s\n[--------------------------]\n" (pos.pos_lnum) (pos.pos_cnum - pos.pos_bol)  (s)*)
+
 
 
 
@@ -46,23 +62,7 @@ let create_hashtable size init =
   let tbl = Hashtbl.create size in
     List.iter (fun (key, data) -> Hashtbl.add tbl key data) init;
      (tbl)
-  (*
-  type token =
-    | T_eof   | T_const | T_var
-    | T_int   | T_bool  | T_char
-    | T_list  | T_nil   | T_nil_qm | T_hashtag | T_head | T_tail
-    | T_array
-    | T_new
-    | T_skip
-    | T_decl  | T_def   | T_return | T_exit | T_ref
-    | T_plus  | T_minus | T_mul | T_div | T_mod
-    | T_not   | T_and   | T_or | T_true | T_false
-    | T_lparen | T_rparen | T_lbracket | T_rbracket
-    | T_comma | T_semicolon | T_colon | T_assignment
-    | T_equal | T_less | T_lesseq | T_greater | T_greatereq  | T_noteq
-    | T_if | T_else | T_elsif | T_for | T_end
-    | T_character of char | T_string of string
-  *)
+
   let keyword_table =
   create_hashtable 26 [
      ("int", T_int);     ("bool", T_bool);   ("char", T_char);
@@ -131,32 +131,39 @@ rule lexer =
 
   | '\n'     { incr_linenum lexbuf; lexer lexbuf}
   | white+   { lexer lexbuf }
-  | _ as chr { error ("invalid character") (lexbuf.Lexing.lex_curr_p) (lexbuf);
-                    lexer lexbuf }
+  | _ as chr {   let pos = position_point lexbuf.Lexing.lex_curr_p in
+            		 print_position err_formatter pos;
+            		 error "Invalid character %c" chr;
+                 lexer lexbuf
+             }
   | eof     { T_eof }
 
 
 (*multiline_comments*)
-and multiline_comments level position = parse
-     | "*>" { Printf.printf "comments (%d) end\n" level;
+and multiline_comments level position_start = parse
+     | "*>" {
+
               if level = 0 then
                 lexer lexbuf
-              else multiline_comments (level-1) (position) lexbuf
+              else multiline_comments (level-1) (position_start) lexbuf
             }
 
-    | "<*"  { Printf.printf "comments (%d) start\n" (level+1);
-              multiline_comments (level+1) (position) lexbuf
+    | "<*"  {
+              multiline_comments (level+1) (position_start) lexbuf
             }
-    | '\n'  { incr_linenum lexbuf; multiline_comments (level) (position) (lexbuf) }
-    | _     { multiline_comments (level) (position) lexbuf }
-    | eof   { error ("comments are not closed") (position) (lexbuf);
-              T_eof
+    | '\n'  { incr_linenum lexbuf; multiline_comments (level) (position_start) (lexbuf) }
+    | _     { multiline_comments (level) (position_start) lexbuf }
+    | eof   { let position_end = lexbuf.Lexing.lex_curr_p in
+  			      let pos = position_context position_start position_end in
+  			      print_position err_formatter pos;
+  			      fatal "Unterminated comment section";
+  			      T_eof
             }
 
 
 
 (*Characters*)
-and read_char position = parse
+and read_char position_start = parse
      | '\\' 'n' '\''  {T_character ('\n')}
      | '\\' 't' '\''  {T_character ('\t')}
      | '\\' 'r' '\''  {T_character ('\r')}
@@ -165,20 +172,30 @@ and read_char position = parse
      | '\\' '\'' '\'' {T_character ('\'')}
      | '\\' '\"' '\'' {T_character ('\"')}
 
-    (* | '\\' "x" hex hex '\'' as temp  { T_character (temp)  } *) (* prosoxi na to doyme *)
+     | '\\' "x" hex hex '\'' as temp  { T_character (String.get (String.make 1 (parse_hex (temp) (position_start) (lexbuf.Lexing.lex_curr_p))) (0) )  } (* prosoxi na to doyme *)
 
      | _ as chr '\''  {  T_character (chr) }
-     | _              { dispose_char position lexbuf  }
+     | _              { dispose_char position_start lexbuf  }
 
-and dispose_char position = parse
-     | '\n'               { incr_linenum lexbuf; dispose_char position lexbuf}         (* add line *)
+and dispose_char position_start = parse
+     | '\n'               { incr_linenum lexbuf; dispose_char position_start lexbuf}         (* add line *)
 
-     | '\''               { error("invalid character") (position) (lexbuf); lexer lexbuf}
+     | '\''               { let position_end = lexbuf.Lexing.lex_curr_p in
+   		                      let pos = position_context position_start position_end in
+   			                    print_position err_formatter pos;
+   			                    error "Invalid character constant";
+   			                    lexer lexbuf
+                          }
 
-     | eof                { error("Character not terminated") (position) (lexbuf); T_eof }  (* ERROR("character not terminated") *)
+     | eof                { let position_end = lexbuf.Lexing.lex_curr_p in
+   		                      let pos = position_context position_start position_end in
+   			                    print_position err_formatter pos;
+   			                    fatal "Character constant terminated with EOF";
+   			                    T_eof
+                          }  (* ERROR("character not terminated") *)
 
 
-     | _                  { dispose_char position lexbuf }
+     | _                  { dispose_char position_start lexbuf }
 
 (*Strings*)
 and read_string my_string position_start = parse
@@ -207,93 +224,17 @@ and read_string my_string position_start = parse
 
 and dispose_string my_string position_start  = parse
    | '\n'         { incr_linenum lexbuf; dispose_string (my_string) (position_start) lexbuf }
-   | '"'          { error ("strings with many lines not valid") (position_start) (lexbuf); lexer lexbuf }
+   | '"'          { let position_end = lexbuf.Lexing.lex_curr_p in
+ 		                let pos = position_context position_start position_end in
+ 			              print_position err_formatter pos;
+ 			              error "Multiline string";
+ 			              lexer lexbuf
+                  }
 
-   | eof          { error ("string not terminated") (position_start) (lexbuf);  T_eof  }
+   | eof          { let position_end = lexbuf.Lexing.lex_curr_p in
+ 		                let pos = position_context position_start position_end in
+ 			              print_position err_formatter pos;
+ 			              fatal "String terminated with EOF";
+                    T_eof
+                  }
    | _            { dispose_string (my_string) (position_start) (lexbuf) }
-
-
-  {
-   let string_of_token token =
-       match token with
-       | T_eof   -> "T_eof"
-       | T_const _ -> "T_const"
-       | T_var _  -> "T_var"
-       | T_int   -> "T_int"
-       | T_bool  -> "T_bool"
-       | T_char  -> "T_char"
-       | T_list  -> "T_list"
-       | T_nil   -> "T_nil"
-       | T_nil_qm -> "T_nil_qm"
-       | T_hashtag -> "T_hashtag"
-       | T_head   -> "T_head"
-       | T_tail   -> "T_tail"
-       | T_array  -> "T_array"
-       | T_new    -> "T_new"
-       | T_skip   -> "T_skip"
-       | T_decl   -> "T_decl"
-       | T_def    -> "T_def"
-       | T_return -> "T_return"
-       | T_exit   -> "T_exit"
-       | T_ref    -> "T_ref"
-       | T_plus   -> "T_plus"
-       | T_minus  -> "T_minus"
-       | T_mul    -> "T_mul"
-       | T_div    -> "T_div"
-       | T_mod    -> "T_mod"
-       | T_not    -> "T_not"
-       | T_and    -> "T_and"
-       | T_or     -> "T_or"
-       | T_true   -> "T_true"
-       | T_false  -> "T_false"
-       | T_lparen -> "T_lparen"
-       | T_rparen -> "T_rparen"
-       | T_lbracket  -> "T_lbracket"
-       | T_rbracket  -> "T_rbracket"
-       | T_comma   -> "T_comma"
-       | T_semicolon  -> "T_semicolon"
-       | T_colon  -> "T_colon"
-       | T_assignment  -> "T_assignment"
-       | T_equal  -> "T_equal"
-       | T_less   -> "T_less"
-       | T_lesseq  -> "T_lesseq"
-       | T_greater  -> "T_greater"
-       | T_greatereq  -> "T_greatereq"
-       | T_noteq  -> "T_noteq"
-       | T_if  -> "T_if"
-       | T_else  -> "T_else"
-       | T_elsif  -> "T_elsif"
-       | T_for  -> "T_for"
-       | T_end  -> "T_end"
-       | T_string _ -> "T_string"
-       | T_character _ -> "T_character"
-
-
-
-   let rec parse lexbuf =
-      let token = lexer lexbuf in
-      Printf.printf "token = %s, lexeme = \"%s\"\n"
-        (string_of_token token) (Lexing.lexeme lexbuf);
-      if token <> T_eof then parse lexbuf
-
-(*
-   let main () =
-       let cin =
-         if Array.length Sys.argv > 1
-         then open_in Sys.argv.(1)
-         else stdin
-       in
-       let lexbuf = Lexing.from_channel cin in
-       try parse lexbuf
-       with End_of_file -> ()
-   let _ = Printexc.print main ()
-
-       (* let rec loop () =
-           let token = lexer lexbuf in
-           Printf.printf "token = %s, lexeme =\"%s\"\n"
-             (string_of_token token) (Lexing.lexeme lexbuf);
-           if token <> T_eof then loop () in
-       loop ()
-       *)
-       *)
-  }
