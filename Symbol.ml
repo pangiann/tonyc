@@ -192,13 +192,11 @@ let newVariable id typ func_entry err =
 let newFunction id err =
   try
     let e = lookupEntry id LOOKUP_ALL_SCOPES false in
-    Printf.printf "here we are bitches\n";
     match e.entry_info with
     | ENTRY_function inf when inf.function_isForward ->
         inf.function_isForward <- false;
         inf.function_pstatus <- PARDEF_CHECK;
         inf.function_redeflist <- inf.function_paramlist;
-        Printf.printf "hello\n";
         e
     | _ ->
         if err then
