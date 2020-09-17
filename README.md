@@ -2,9 +2,14 @@ tonyc
 =====
 
 This is the source code for tonyc, a compiler for the language Tony, implemented for Compilers Course,
-8th Semester, National Technical University of Athens.
+8th Semester, National Technical University of Athens (Spring 2019-2020).
 
-Authors: Dimitris Komninos, Panagiotis Giannoulis
+## :busts_in_silhouette: Authors
+
+ * Dimitris Komninos ([LightingSpider](https://github.com/LightingSpider))
+ * Panagiotis Giannoulis ([pangiann](https://github.com/pangiann))
+ 
+ 
 Course info and details: http://courses.softlab.ntua.gr/compilers/2020a/
 
 * [Licence](#licence)
@@ -70,18 +75,48 @@ Usage
     
 * -O flag stands for optimization purposes    
 
+
+#### Compile tony programs
+
+For instance assume that you have the following tony program under `example.tony`
+
+```pascal
+def main():
+	int i
+	for i := 0; i < 10; i := i + 1:
+		puti(i)
+		puts(" ")
+	end
+	puts("\n")
+end
+```
+
+which prints the numbers 0 to 9. Running
+
+```bash
+./tonyc example.tony
+```
+
+will produce IR code at `example.ll` , the object file at `example.s` and the final (linked) executable at `example`.  If you specify the flag `-i` then the program should be read from `stdin` and the IR will be emitted to `stdout` . So the tony compiler should be called as 
+
+```bash
+./tonyc -i <example.tony >example.ll
+```
+
+
+
 Features
 --------
 
 Some features of the Tony language are:
 
 * Simple structure and syntax of statements
-* All basic data types including booleans, characters, integers, ... dimensional arrays and *lists*
+* All basic data types including booleans, characters, integers, one/multi dimensional arrays and *lists*
 * Simple functions, by value or by reference parameter passing with left-to-right evaluation.
 * Pascal-like variable scope
 * Function declaration for mutual recursion
 * A small standard library of functions
-* Code optimizations from llvm 
+* Code optimizations 
 * *Dynamic memory allocation* 
 * *Garbage Collection*
 
