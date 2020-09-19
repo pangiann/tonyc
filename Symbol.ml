@@ -230,7 +230,6 @@ let newParameter id typ mode f  err =
           inf.function_paramlist <- e :: inf.function_paramlist;
           e
       | PARDEF_CHECK -> begin
-          Printf.printf "we are here\n";
           match inf.function_redeflist with
           | p :: ps -> begin
               inf.function_redeflist <- ps;
