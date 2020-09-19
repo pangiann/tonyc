@@ -271,6 +271,12 @@ let no_return_stmt_error (startpos, endpos) =
     error "If a return type exists, last statement must be in the form of: return <expr>";
     raise Terminate
 
+let return_error (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "If a return type exists, function has to";
+    raise Terminate
+
+
 let parameter_type_error par_type expr_type (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Type mismatch for parameter, %s was expected, found %s instead."
@@ -282,10 +288,10 @@ let error_array_byref (startpos, endpos) =
   error "Array cannot be passed by refrence to a function";
   raise Terminate
 
-  let error_list_byref (startpos, endpos) =
-    print_position (err_formatter) (position_context (startpos) (endpos));
-    error "List cannot be passed by refrence to a function";
-    raise Terminate
+let error_list_byref (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "List cannot be passed by refrence to a function";
+  raise Terminate
 
 let return_type_error result_type expr_type (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));

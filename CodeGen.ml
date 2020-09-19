@@ -409,7 +409,6 @@ and gen_if_stmt frame if_stmt (func_name) current_block (depth_of_func) =
       let llcond = gen_expr (frame) (if_cond) current_block (depth_of_func) in
       let zero = const_int bool_type 0 in
       let cond_val = build_icmp Icmp.Ne llcond zero "ifcond" builder in
-
       let start_bb = insertion_block builder in
       let the_function = block_parent start_bb in
       gen_if_body frame if_body cond_val the_function start_bb (func_name) current_block (depth_of_func)
@@ -430,7 +429,7 @@ and gen_if_body frame if_body if_cond the_function start_bb func_name current_bl
                         ignore(build_cond_br if_cond then_bb else_bb builder);
                         else_bb
             | Some (elif_whole) ->
-              gen_elif_whole (if_cond) (then_bb) (then_bb) (frame) (the_function) (elif_whole) (after_bb) (func_name) current_block (depth_of_func)
+                gen_elif_whole (if_cond) (then_bb) (then_bb) (frame) (the_function) (elif_whole) (after_bb) (func_name) current_block (depth_of_func)
           end
         in
         (
@@ -488,7 +487,7 @@ and gen_elif elif (elif_bb) (elif_body_bb) (after_bb) (frame) (func_name) (the_f
       ret_flag := 0
     );
     position_at_end elif_bb builder;
-    let llcond = gen_expr (frame) (elif_cond) current_block (depth_of_func) in
+    let llcond = gen_expr (frame) (elif_cond) elif_bb (depth_of_func) in
     let zero = const_int bool_type 0 in
     let cond_val = build_icmp Icmp.Ne llcond zero "elif_cond" builder in
         cond_val
@@ -513,13 +512,13 @@ and gen_for frame for_head for_body (func_name) current_block (depth_of_func) =
 
         ignore(build_br loop_bb builder);
         position_at_end loop_bb builder;
-        let for_expr = gen_expr frame expr current_block (depth_of_func) in
+        let for_expr = gen_expr frame expr (loop_bb) (depth_of_func) in
         let loop_cond = build_icmp Icmp.Ne for_expr (const_int bool_type 0) "loop_cond" builder in
         ignore(build_cond_br loop_cond body_bb after_bb builder);
 
         position_at_end body_bb builder;
         gen_stmts (frame) (for_body) (func_name) (insertion_block builder) (depth_of_func);
-        gen_simple_list (simple2_list) (frame) (func_name) current_block (depth_of_func);
+        gen_simple_list (simple2_list) (frame) (func_name) (insertion_block builder) (depth_of_func);
 
         ignore(build_br loop_bb builder);
 

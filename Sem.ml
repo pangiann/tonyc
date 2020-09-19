@@ -286,7 +286,12 @@ and sem_simple simple =
     let call_entry = sem_call (call) (simple.simple_error_pos) in
      begin
       match call_entry.entry_info with
-      | ENTRY_function  function_info -> call.call_depth <- call_entry.entry_scope.sco_nesting
+      | ENTRY_function  function_info ->
+          call.call_depth <- call_entry.entry_scope.sco_nesting;
+          if function_info.function_result <> TYPE_none then
+            return_error simple.simple_error_pos
+            
+
      end;
      ignore(call_entry)
 
