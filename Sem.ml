@@ -161,13 +161,10 @@ and sem_defs_byref func_entry par_type par_name (startpos, endpos) =
   | [] -> ()
   | (def :: rest) ->
   (
-      match par_type with
-      | TYPE_array _ -> error_array_byref (startpos, endpos)
-      | TYPE_list  _ -> error_list_byref (startpos, endpos)
-      | _ ->
-            let par_entry = newParameter (id_make def) par_type PASS_BY_REFERENCE func_entry true
-            in ignore par_entry;
-            sem_defs_byref (func_entry) (par_type) (rest) (startpos, endpos)
+
+      let par_entry = newParameter (id_make def) par_type PASS_BY_REFERENCE func_entry true
+      in ignore par_entry;
+      sem_defs_byref (func_entry) (par_type) (rest) (startpos, endpos)
     )
 
 and sem_inside_fun_list inside_fun_list func_entry =
@@ -290,7 +287,7 @@ and sem_simple simple =
           call.call_depth <- call_entry.entry_scope.sco_nesting;
           if function_info.function_result <> TYPE_none then
             return_error simple.simple_error_pos
-            
+
 
      end;
      ignore(call_entry)
@@ -385,11 +382,17 @@ and get_structure_entry atom =
           match atom_entry.entry_info with
           | ENTRY_variable variable_info ->
               atom.atom_frame_place <- variable_info.variable_frame_place;
-              atom.atom_depth <- atom_entry.entry_scope.sco_nesting
-
+              atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
+              atom.atom_byrefFlag <- false
           | ENTRY_parameter parameter_info ->
               atom.atom_frame_place <- parameter_info.parameter_frame_place;
-              atom.atom_depth <- atom_entry.entry_scope.sco_nesting
+              atom.atom_depth <- atom_entry.entry_scope.sco_nesting;
+              atom.atom_byrefFlag <-
+              (
+                match parameter_info.parameter_mode with
+                | PASS_BY_VALUE -> false
+                | PASS_BY_REFERENCE -> true
+              )
 
           | _ -> raise TypeError
           );

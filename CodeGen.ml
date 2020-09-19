@@ -216,7 +216,7 @@ and gen_ast ast_tree opts =
     add_opts mpm;
     ignore(PassManager.run_module the_module mpm));
 
-  Llvm_analysis.assert_valid_module the_module;
+  (*Llvm_analysis.assert_valid_module the_module;*)
 
 
 and gen_fun_def ast current_fr param_arr  =
@@ -258,7 +258,7 @@ and gen_fun_def ast current_fr param_arr  =
 
     gen_inside_fun_list (inside_fun_list) (new_frame);
     position_at_end func_entry_block builder;
-    gen_stmts (new_frame) (stmts) (func_name) (func_entry_block) (depth_of_func);
+    gen_stmts (new_frame) (stmts) (func_name)  (depth_of_func);
 
 
 
@@ -380,33 +380,33 @@ and gen_same_type_def entry_info =
   | _ -> raise Terminate
 
 
-and gen_stmts frame stmts (func_name) (current_block) (depth_of_func) =
+and gen_stmts frame stmts (func_name)  (depth_of_func) =
   match stmts with
   | [] -> ()
   | stmt :: rest -> (
-      gen_stmt frame stmt (func_name) (current_block) (depth_of_func);
-      gen_stmts frame rest (func_name) (insertion_block builder) (depth_of_func)
+      gen_stmt frame stmt (func_name) (depth_of_func);
+      gen_stmts frame rest (func_name)  (depth_of_func)
     )
 
-and gen_stmt frame stmt (func_name) (current_block) (depth_of_func) =
+and gen_stmt frame stmt (func_name) (depth_of_func) =
   match stmt.stmt_info with
-  | S_simple simple -> ignore(gen_simple simple (frame) (func_name) (insertion_block builder) (depth_of_func))
+  | S_simple simple -> ignore(gen_simple (simple) (frame) (func_name) (insertion_block builder) (depth_of_func))
   | S_exit -> ignore(build_ret_void builder)
   | S_return expr ->
-     let llexpr = gen_expr frame expr current_block (depth_of_func) in
+     let llexpr = gen_expr frame expr (insertion_block builder) depth_of_func in
      ret_flag := 1;
      ignore(build_ret llexpr builder)
   | S_if if_stmt ->
-      ignore(gen_if_stmt frame if_stmt (func_name) current_block (depth_of_func))
+      ignore(gen_if_stmt frame if_stmt (func_name) (insertion_block builder) (depth_of_func))
   | S_for for_stmt ->
-      ignore(gen_for_stmt frame for_stmt (func_name) current_block (depth_of_func))
+      ignore(gen_for_stmt frame for_stmt (func_name) (insertion_block builder) (depth_of_func))
 
-and gen_if_stmt frame if_stmt (func_name) current_block (depth_of_func) =
+and gen_if_stmt frame if_stmt (func_name) (current_block) (depth_of_func) =
   match if_stmt with
   | (if_cond, if_body) ->
 
     (
-      let llcond = gen_expr (frame) (if_cond) current_block (depth_of_func) in
+      let llcond = gen_expr (frame) (if_cond) (current_block) (depth_of_func) in
       let zero = const_int bool_type 0 in
       let cond_val = build_icmp Icmp.Ne llcond zero "ifcond" builder in
       let start_bb = insertion_block builder in
@@ -437,7 +437,7 @@ and gen_if_body frame if_body if_cond the_function start_bb func_name current_bl
           begin
             match maybe_else with
             | None -> ()
-            | Some (else_whole) -> gen_stmts (frame) (else_whole) (func_name) (insertion_block builder) (depth_of_func)
+            | Some (else_whole) -> gen_stmts (frame) (else_whole) (func_name)  (depth_of_func)
           end;
           (* be careful if we don't have a return stmt then branch to endif, else a return stmt will be created *)
           if !ret_flag = 0 then
@@ -446,7 +446,7 @@ and gen_if_body frame if_body if_cond the_function start_bb func_name current_bl
             )
         );
         position_at_end then_bb builder;
-        gen_stmts frame stmts func_name (insertion_block builder) (depth_of_func);
+        gen_stmts frame stmts func_name (depth_of_func);
         (if !ret_flag = 0 then
          ignore(build_br after_bb builder);
           ret_flag := 0
@@ -481,7 +481,7 @@ and gen_elif elif (elif_bb) (elif_body_bb) (after_bb) (frame) (func_name) (the_f
   | (elif_cond, elif_body) ->
 
     position_at_end elif_body_bb builder;
-    gen_stmts frame elif_body (func_name) (insertion_block builder) (depth_of_func);
+    gen_stmts frame elif_body (func_name)  (depth_of_func);
     (if !ret_flag = 0 then
       ignore(build_br after_bb builder);
       ret_flag := 0
@@ -501,7 +501,7 @@ and gen_for frame for_head for_body (func_name) current_block (depth_of_func) =
   match for_head with
   | (simple_list, expr, simple2_list) ->
 
-      gen_simple_list (simple_list) (frame) (func_name) current_block (depth_of_func);
+      gen_simple_list (simple_list) (frame) (func_name) (depth_of_func);
 
       let prev_bb = insertion_block builder in
       let the_function = block_parent prev_bb in
@@ -517,21 +517,21 @@ and gen_for frame for_head for_body (func_name) current_block (depth_of_func) =
         ignore(build_cond_br loop_cond body_bb after_bb builder);
 
         position_at_end body_bb builder;
-        gen_stmts (frame) (for_body) (func_name) (insertion_block builder) (depth_of_func);
-        gen_simple_list (simple2_list) (frame) (func_name) (insertion_block builder) (depth_of_func);
+        gen_stmts (frame) (for_body) (func_name)  (depth_of_func);
+        gen_simple_list (simple2_list) (frame) (func_name) (depth_of_func);
 
         ignore(build_br loop_bb builder);
 
         position_at_end after_bb builder;
 
-and gen_simple_list simple_list frame func_name current_block (depth_of_func) =
+and gen_simple_list simple_list frame func_name  (depth_of_func) =
   match simple_list with
   | [] -> ()
   | [simple] -> gen_simple simple frame func_name (insertion_block builder) (depth_of_func)
   | simple::rest ->
     (
       gen_simple simple frame func_name (insertion_block builder) (depth_of_func);
-      gen_simple_list rest frame func_name current_block (depth_of_func)
+      gen_simple_list rest frame func_name  (depth_of_func)
     )
 
 and gen_simple simple frame func_name (current_block) (depth_of_func) =
@@ -811,7 +811,15 @@ and gen_struct frame atom current_block (depth_of_func) =
   | A_var var_atom ->
     let parent_frame = codegen_frame_search frame (depth_of_func - atom.atom_depth) in
     let var_atom_elemptr = build_struct_gep parent_frame atom.atom_frame_place "" builder in
-    build_load var_atom_elemptr "" builder
+      (if (atom.atom_byrefFlag <> true) then
+        build_load var_atom_elemptr "" builder
+      else
+      (
+          let var_atom_byref_loaded = build_load var_atom_elemptr "loadbyerf" builder in
+          let var_atom_loaded = build_load var_atom_byref_loaded "loadtmp" builder in
+            var_atom_loaded
+      )
+     )
   | A_structure (stru_atom, stru_expr) ->
     let var_atom = gen_struct frame stru_atom current_block (depth_of_func) in
     let index = gen_expr frame stru_expr current_block (depth_of_func) in
