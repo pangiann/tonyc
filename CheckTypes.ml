@@ -14,9 +14,16 @@ let note_by_ref par expr =
    | PASS_BY_REFERENCE, _  ->
    begin
      match expr.expr_info with
-     | E_atom (atom) -> atom.atom_callbyref <- true
+     | E_atom (atom) ->
+      begin
+       match atom.atom_info with
+       | A_call (a) -> invalid_expr_byref expr.expr_error_pos;
+       | A_string (a) -> invalid_expr_byref expr.expr_error_pos;
+       | _ -> atom.atom_callbyref <- true
+      end
      | E_head (h_expr) -> expr.expr_callbyref <- true
      | E_tail (t_expr) -> expr.expr_callbyref <- true
+     | _ -> invalid_expr_byref expr.expr_error_pos;
    end
    | PASS_BY_VALUE, _ -> ()
  end

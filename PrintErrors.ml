@@ -41,155 +41,133 @@ let not_terminated_char (startpos, endpos) =
 
 let missing_colon_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing colon after function definition.";
-  raise Terminate
+  error "Missing colon after function definition."
 
 
 let missing_end_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "A function has to be terminated by the \"end\" keyword.";
-  raise Terminate
+  error "A function has to be terminated by the \"end\" keyword."
 
 let missing_func_name_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing function name";
-  raise Terminate
+  error "Missing function name"
 
 let  missing_lparen_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing left \"(\" parenthesis in header definition";
-  raise Terminate
+  error "Missing left \"(\" parenthesis in header definition"
 
  let missing_rparen_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing right \")\" parenthesis in header definition";
-  raise Terminate
+  error "Missing right \")\" parenthesis in header definition"
 
 let header_definitions_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Invalid function header definition";
-  raise Terminate
+  error "Invalid function header definition"
 
 let missing_return_expr (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Some expression was expected after \"return\" statement";
-  raise Terminate
+  error "Some expression was expected after \"return\" statement"
 
 let missing_colon_after_for_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing colon after \"for\" definition.";
-  raise Terminate
+  error "Missing colon after \"for\" definition."
 
 let missing_end_after_for_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "A \"for\" statement has to be terminated by the \"end\" keyword.";
-  raise Terminate
+  error "A \"for\" statement has to be terminated by the \"end\" keyword."
 
 let missing_semic_after_for_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing semicolon in \"for\" statement.";
-  raise Terminate
+  error "Missing semicolon in \"for\" statement."
 
 let expr_after_for_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing boolean condition in \"for\" statement.";
-  raise Terminate
+  error "Missing boolean condition in \"for\" statement."
 
 let missing_semic_after_for_cond_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing semicolon \";\" after \"for\" condition.";
-  raise Terminate
+  error "Missing semicolon \";\" after \"for\" condition."
 
 let simple_after_for_cond_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Missing incremental statement(s) after condition in\
-	 \"for\" statement.";
-  raise Terminate
+	 \"for\" statement."
+
+let simple_after_for_error (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Missing initialization statement(s) after \"for\" statement."
 
 let missing_end_after_if_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "An \"if\" statement has to be terminated by the \"end\" keyword.";
-  raise Terminate
+  error "An \"if\" statement has to be terminated by the \"end\" keyword."
 
 let expr_after_if_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Boolean expression is expected after \"if\" keyword.";
-  raise Terminate
+  error "Boolean expression is expected after \"if\" keyword."
 
 let missing_colon_after_if_expr_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing colon after expression in \"if\" statement.";
-  raise Terminate
+  error "Missing colon after expression in \"if\" statement."
 
 let missing_colon_after_else_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing colon after \"else\" in \"if\" statement.";
-  raise Terminate
+  error "Missing colon after \"else\" in \"if\" statement."
 
 let expr_after_elsif_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Boolean expression is expected after \"elsif\" keyword.";
-  raise Terminate
+  error "Boolean expression is expected after \"elsif\" keyword."
 
 let missing_colon_after_elsif_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing colon after \"elseif\" in \"if\" statement.";
-  raise Terminate
+  error "Missing colon after \"elseif\" in \"if\" statement."
+
+let missing_comma_var_def_error (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Variables of the same type must be separated by commas."
 
 let missing_type_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Valid type expected after \"ref\" keyword.";
-  raise Terminate
+  error "Valid type expected after \"ref\" keyword."
 
 let syntax_assignment_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Expression expected in assignment.";
-  raise Terminate
+  error "Expression expected in assignment."
 
 let missing_lparen_call_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing left \"(\" parenthesis in function calling";
-  raise Terminate
+  error "Missing left \"(\" parenthesis in function call"
 
 let wrong_function_call (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Wrong syntax in function call.";
-  raise Terminate
+  error "Wrong syntax in function call."
 
 let missing_rparen_call_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing right \")\" parenthesis in function calling";
-  raise Terminate
+  error "Missing right \")\" parenthesis in function call"
 
 let missing_rbracket_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing ']' character in expression.";
-  raise Terminate
+  error "Missing ']' character in expression."
 
 let missing_rparen_expr_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing right \")\" parenthesis in expression";
-  raise Terminate
+  error "Missing right \")\" parenthesis in expression"
 
 let invalid_binary_expr_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing expression in binary operator";
-  raise Terminate
+  error "Missing expression in binary operator"
 
 let invalid_cmp_expr_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing expression in compare operator";
-  raise Terminate
+  error "Missing expression in compare operator"
 
 let missing_lbracket_new_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing '[' character in \"new\" expression.";
-  raise Terminate
+  error "Missing '[' character in \"new\" expression."
 
 let missing_rbracket_new_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing ']' character in \"new\" expression.";
-  raise Terminate
+  error "Missing ']' character in \"new\" expression."
 
                           (*SEMANTIC ERRORS*)
 
@@ -250,10 +228,10 @@ let duplicate_error id (startpos, endpos) =
    raise Terminate
 
 let duplicate_fn_error id (startpos, endpos) =
- print_position (err_formatter) (position_context (startpos) (endpos));
- error "Duplicate function: The given function \"%s\" corresponds \
-  to an already declared function." id;
-  raise Terminate
+   print_position (err_formatter) (position_context (startpos) (endpos));
+   error "Duplicate function: The given function \"%s\" corresponds \
+    to an already declared function." id;
+    raise Terminate
 
 let fn_id_error id (startpos, endpos) =
     print_position (err_formatter) (position_context (startpos) (endpos));
@@ -273,25 +251,21 @@ let no_return_stmt_error (startpos, endpos) =
 
 let return_error (startpos, endpos) =
     print_position (err_formatter) (position_context (startpos) (endpos));
-    error "If a return type exists, function has to";
+    error "If a return type exists, function call has to be an rvalue";
     raise Terminate
 
 
 let parameter_type_error par_type expr_type (startpos, endpos) =
-  print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Type mismatch for parameter, %s was expected, found %s instead."
-    (typeToString par_type) (typeToString expr_type);
-  raise Terminate
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "Type mismatch for parameter, %s was expected, found %s instead."
+      (typeToString par_type) (typeToString expr_type);
+    raise Terminate
 
-let error_array_byref (startpos, endpos) =
-  print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Array cannot be passed by refrence to a function";
-  raise Terminate
 
-let error_list_byref (startpos, endpos) =
-  print_position (err_formatter) (position_context (startpos) (endpos));
-  error "List cannot be passed by refrence to a function";
-  raise Terminate
+let invalid_expr_byref  (startpos, endpos) =
+    print_position (err_formatter) (position_context (startpos) (endpos));
+    error "This expression cannot be passed by reference";
+    raise Terminate
 
 let return_type_error result_type expr_type (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));

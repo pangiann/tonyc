@@ -45,6 +45,7 @@ let library_functions () =
   ignore(function_declare "putb" TYPE_none (("b", TYPE_bool, PASS_BY_VALUE)::[]) );
   ignore(function_declare "putc" TYPE_none (("c", TYPE_char, PASS_BY_VALUE)::[]) );
   ignore(function_declare "puts" TYPE_none (("s", TYPE_array(TYPE_char,0), PASS_BY_VALUE)::[]) );
+  ignore(function_declare "getchar" TYPE_char ([]) );
 
   ignore(function_declare "geti" TYPE_int ([]) );
   ignore(function_declare "getb" TYPE_bool ([]) );
@@ -114,7 +115,7 @@ and sem_fun_def ast =
       (
         match func_entry.entry_info with
         | ENTRY_function  function_info -> function_info.var_type_list
-        | _ -> Printf.printf "doesn't exist\n"; raise TypeError
+        | _ -> Printf.printf "doesn't exist\n"; raise Terminate
 
       );
 
@@ -339,7 +340,7 @@ and sem_atom atom =
 
               )
 
-        | _ -> raise TypeError
+        | _ -> id_error var_atom atom.atom_error_pos
         );
         atom_entry
       )
@@ -394,7 +395,7 @@ and get_structure_entry atom =
                 | PASS_BY_REFERENCE -> true
               )
 
-          | _ -> raise TypeError
+          | _ -> id_error var_atom atom.atom_error_pos
           );
         atom_entry
       )

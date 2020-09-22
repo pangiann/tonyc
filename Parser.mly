@@ -135,6 +135,7 @@ stmt        : simple          { { stmt_info = S_simple ($1); stmt_error_pos = ($
             | for_whole       { { stmt_info = S_for ($1); stmt_error_pos = ($startpos, $endpos) } }
 
 for_whole : T_for for_head T_colon for_body  T_end  { ($2, $4) }
+          | T_for error                             { simple_after_for_error ($startpos, $endpos); raise Terminate }
           | T_for for_head error                    { missing_colon_after_for_error ($startpos, $endpos); raise Terminate }
           | T_for for_head T_colon for_body error   { missing_end_after_for_error ($startpos, $endpos); raise Terminate }
 
@@ -193,7 +194,7 @@ same_type_defs   : mytype  defs      { { defs_info = SameTypeDefs ($1, $2); defs
 
 defs   : T_var                 { [$1] }
        | T_var T_comma defs    { $1 :: $3 }
-      /* | T_var error           { missing_comma_var_def_error ($startpos, $endpos); raise Terminate } */
+       | T_var error           { missing_comma_var_def_error ($startpos, $endpos); raise Terminate }
 
 
 
@@ -211,6 +212,7 @@ var_def     : mytype defs             { { var_info = ($1, $2); var_error_pos = (
 simple      : T_skip                  { { simple_info = Simple_skip; simple_error_pos = ($startpos, $endpos) } }
             | atom T_assignment expr  { { simple_info = Simple_assignment($1, $3); simple_error_pos = ($startpos, $endpos) } }
             | atom T_assignment error {  syntax_assignment_error ($startpos, $endpos); raise Terminate }
+            | atom error              {  syntax_assignment_error ($startpos, $endpos); raise Terminate }
             | call                    { { simple_info = Simple_call ($1); simple_error_pos = ($startpos, $endpos) }  }
 
 simple_list : simple                                    { [$1] }
@@ -218,7 +220,6 @@ simple_list : simple                                    { [$1] }
 
 
 call        : T_var T_lparen maybe_actual_params T_rparen  { { call_info = ($1, $3); call_depth = 0 } }
-            | T_var error { missing_lparen_call_error ($startpos, $endpos); raise Terminate }
             | T_var T_lparen error { wrong_function_call ($startpos, $endpos); raise Terminate }
             | T_var T_lparen maybe_actual_params error { missing_rparen_call_error ($startpos, $endpos); raise Terminate }
 

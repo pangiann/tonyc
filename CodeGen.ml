@@ -118,6 +118,9 @@ and library_functions () =
   ignore(declare_function "getc" ft the_module);
   ignore(lib_func_list := "getc"::(!lib_func_list));
 
+  let ft = function_type (char_type) [| |] in
+  ignore(declare_function "getchar" ft the_module);
+  ignore(lib_func_list := "getchar"::(!lib_func_list));
 
   let ft = function_type (void_type) [| int_type; (pointer_type char_type) |] in
   ignore(declare_function "gets" ft the_module);
