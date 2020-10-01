@@ -37,8 +37,16 @@ In order to use the tool, you need the following programs:
 
 2. **Menhir**
 
-3. **llvm 6.0.0 version, and ocaml bindings**
+3. **Opam**
+	
+	Download the latest release from your package manager or the official website.
 
+3. **llvm, and ocaml bindings**
+      
+      ```
+      	sudo apt install llvm && opam install llvm
+      ```
+      
       Probably you'll need to install the following packages: 
 
       * cmake
@@ -105,7 +113,7 @@ will produce IR code at `example.ll` , the object file at `example.s` and the fi
 
 ### Library 
 
-In order to use the library functions, file lib.a must be in the same folder with all the other files (as it is right now). But, if you want to install the latest 
+In order to use the library functions, file lib.a must be in the same folder in which you'll compiler your program. If you want to install the latest 
 vesrion, you have to follow these steps:
 
  * Download the github repository of the library functions created by [abentopoulos](https://github.com/abenetopoulos)
