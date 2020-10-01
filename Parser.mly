@@ -191,6 +191,7 @@ formal_defs      : same_type_defs                          { [$1] }
 same_type_defs   : mytype  defs      { { defs_info = SameTypeDefs ($1, $2); defs_error_pos = ($startpos, $endpos) } }
                  | T_ref mytype defs { { defs_info = SameTypeDefsByRef ($2, $3); defs_error_pos = ($startpos, $endpos) } }
                  | T_ref error       { missing_type_error ($startpos, $endpos); raise Terminate }
+                 | error             { missing_type_error_after_semicolon ($startpos, $endpos); raise Terminate }
 
 defs   : T_var                 { [$1] }
        | T_var T_comma defs    { $1 :: $3 }
@@ -207,7 +208,9 @@ mytype    : T_int                               { TYPE_int }
 func_decl   : T_decl header { $2 }
 
 var_def     : mytype defs             { { var_info = ($1, $2); var_error_pos = ($startpos, $endpos) } }
-          /*  | mytype error            { var_def_error ($startpos, $endpos); raise Terminate } */
+            | mytype error            { var_def_error ($startpos, $endpos); raise Terminate }
+            | error                   { var_def_error ($startpos, $endpos); raise Terminate }
+
 
 simple      : T_skip                  { { simple_info = Simple_skip; simple_error_pos = ($startpos, $endpos) } }
             | atom T_assignment expr  { { simple_info = Simple_assignment($1, $3); simple_error_pos = ($startpos, $endpos) } }
@@ -231,7 +234,7 @@ maybe_actual_params    : /* empty */    { [] }
 
 actual_params   : expr                                 { [$1] }
                 | expr T_comma actual_params           { $1 :: $3 }
-                /*| expr error                           { missing_comma_call_args_error ($startpos, $endpos); raise Terminate } */
+                | expr error                           { missing_comma_call_args_error ($startpos, $endpos); raise Terminate }
 
 
 
@@ -247,10 +250,9 @@ expr        : atom                                      { { expr_info = E_atom (
             | T_character                               { { expr_info = E_character($1); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false }  }
             | T_lparen expr T_rparen                    { $2 }
             | T_lparen expr error                       { missing_rparen_expr_error ($startpos, $endpos); raise Terminate }
-          /*  | unary_op expr %prec T_neg                 { { expr_info = E_unary_op ($1, $2); expr_error_pos = ($startpos, $endpos) }  }*/
 
             | T_plus expr                               { { expr_info = E_unary_op (O_plus, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false}  }
-            | T_minus expr                              { { expr_info = E_unary_op (O_minus, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
+            | T_minus expr %prec T_minus                { { expr_info = E_unary_op (O_minus, $2); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
 
             | expr binary_op expr                       { { expr_info = E_binary_op ($1, $2, $3); expr_error_pos = ($startpos, $endpos); expr_type = TYPE_none; expr_callbyref = false } }
 

@@ -254,8 +254,7 @@ and sem_stmt stmt fun_name =
   match stmt.stmt_info with
   | S_simple simple ->
     sem_simple simple
-  | S_exit ->
-    closeScope();
+  | S_exit -> ()
   | S_return expr ->
      let expr_entry = sem_expr expr in
       let func_entry =  lookupEntry (id_make fun_name) LOOKUP_ALL_SCOPES true in
@@ -359,7 +358,7 @@ and sem_atom atom =
      | ENTRY_function  function_info -> call_atom.call_depth <- call_entry.entry_scope.sco_nesting
     end;
     call_entry
-  | A_string str_atom -> newTemporary (TYPE_array (TYPE_char, -1))
+  | A_string str_atom -> newTemporary (TYPE_array (TYPE_char, -42))
 
 and sem_struct atom =
   let atom_entry = get_structure_entry atom in

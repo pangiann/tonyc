@@ -25,7 +25,7 @@ let bool_type = i1_type context
 
 let ret_flag = ref 0
 let type_stack = Stack.create ()
-
+let exit_flag = ref 0
 let lib_func_list = ref []
 let rec_func_list = ref []
 let decl_func_list = ref []
@@ -219,7 +219,7 @@ and gen_ast ast_tree opts =
     add_opts mpm;
     ignore(PassManager.run_module the_module mpm));
 
-  (*Llvm_analysis.assert_valid_module the_module;*)
+  Llvm_analysis.assert_valid_module the_module;
 
 
 and gen_fun_def ast current_fr param_arr  =
@@ -266,9 +266,12 @@ and gen_fun_def ast current_fr param_arr  =
 
 
    (*generate return code, if return stmt doesn't exist*)
-   (if (!ret_flag = 0) then
-      ignore(build_ret_void builder);
-      ret_flag := 0
+   (if (!ret_flag = 0 && !exit_flag = 0) then
+      ignore(build_ret_void builder)
+    else (
+      ret_flag := 0;
+      exit_flag := 0
+      )
    );
    (* pop from stack the frame type of function *)
    (* because function terminates now *)
@@ -388,13 +391,18 @@ and gen_stmts frame stmts (func_name)  (depth_of_func) =
   | [] -> ()
   | stmt :: rest -> (
       gen_stmt frame stmt (func_name) (depth_of_func);
-      gen_stmts frame rest (func_name)  (depth_of_func)
+      if (!ret_flag = 1 || !exit_flag = 1) then
+        ()
+      else
+        gen_stmts frame rest (func_name)  (depth_of_func)
     )
 
 and gen_stmt frame stmt (func_name) (depth_of_func) =
   match stmt.stmt_info with
   | S_simple simple -> ignore(gen_simple (simple) (frame) (func_name) (insertion_block builder) (depth_of_func))
-  | S_exit -> ignore(build_ret_void builder)
+  | S_exit ->
+    exit_flag := 1;
+    ignore(build_ret_void builder)
   | S_return expr ->
      let llexpr = gen_expr frame expr (insertion_block builder) depth_of_func in
      ret_flag := 1;
@@ -443,16 +451,22 @@ and gen_if_body frame if_body if_cond the_function start_bb func_name current_bl
             | Some (else_whole) -> gen_stmts (frame) (else_whole) (func_name)  (depth_of_func)
           end;
           (* be careful if we don't have a return stmt then branch to endif, else a return stmt will be created *)
-          if !ret_flag = 0 then
-          ( ignore(build_br after_bb builder);
-            ret_flag := 0
+          (if !ret_flag = 0 && !exit_flag = 0 then
+            ignore(build_br after_bb builder)
+           else(
+            ret_flag := 0;
+            exit_flag := 0
             )
+          )
         );
         position_at_end then_bb builder;
         gen_stmts frame stmts func_name (depth_of_func);
-        (if !ret_flag = 0 then
-         ignore(build_br after_bb builder);
-          ret_flag := 0
+        (if !ret_flag = 0 && !exit_flag = 0 then
+          ignore(build_br after_bb builder)
+         else(
+          ret_flag := 0;
+          exit_flag := 0
+          )
         );
         position_at_end after_bb builder;
       );
@@ -485,9 +499,12 @@ and gen_elif elif (elif_bb) (elif_body_bb) (after_bb) (frame) (func_name) (the_f
 
     position_at_end elif_body_bb builder;
     gen_stmts frame elif_body (func_name)  (depth_of_func);
-    (if !ret_flag = 0 then
-      ignore(build_br after_bb builder);
-      ret_flag := 0
+    (if !ret_flag = 0 && !exit_flag = 0 then
+      ignore(build_br after_bb builder)
+     else(
+      ret_flag := 0;
+      exit_flag := 0
+      )
     );
     position_at_end elif_bb builder;
     let llcond = gen_expr (frame) (elif_cond) elif_bb (depth_of_func) in

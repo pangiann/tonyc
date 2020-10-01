@@ -56,13 +56,17 @@ let  missing_lparen_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Missing left \"(\" parenthesis in header definition"
 
- let missing_rparen_error (startpos, endpos) =
-  print_position (err_formatter) (position_context (startpos) (endpos));
-  error "Missing right \")\" parenthesis in header definition"
+let missing_rparen_error (startpos, endpos) =
+print_position (err_formatter) (position_context (startpos) (endpos));
+error "Missing right \")\" parenthesis in header definition"
 
 let header_definitions_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Invalid function header definition"
+
+let var_def_error (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Invalid variable definition"
 
 let missing_return_expr (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
@@ -129,9 +133,17 @@ let missing_type_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Valid type expected after \"ref\" keyword."
 
+let missing_type_error_after_semicolon (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Valid type expected after semicolon."
+
 let syntax_assignment_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Expression expected in assignment."
+
+let missing_comma_call_args_error (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Missing comma between function arguments."
 
 let missing_lparen_call_error (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
@@ -203,6 +215,11 @@ let lvalue_error_call (startpos, endpos) =
 let lvalue_error_string (startpos, endpos) =
   print_position (err_formatter) (position_context (startpos) (endpos));
   error "Assignment error: A String cannot be a Lvalue.";
+  raise Terminate
+
+let string_assignment_error (startpos, endpos) =
+  print_position (err_formatter) (position_context (startpos) (endpos));
+  error "Assignment error: A constant string cannot be assigned to an array of characters";
   raise Terminate
 
 let many_arguments (startpos, endpos) =
