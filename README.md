@@ -113,7 +113,7 @@ will produce IR code at `example.ll` , the object file at `example.s` and the fi
 
 ### Library 
 
-In order to use the library functions, file lib.a must be in the same folder in which you'll compiler your program. If you want to install the latest 
+In order to use the library functions, file lib.a must be in the folder where your program will be compiled. If you want to install the latest 
 vesrion, you have to follow these steps:
 
  * Download the github repository of the library functions created by [abentopoulos](https://github.com/abenetopoulos)
