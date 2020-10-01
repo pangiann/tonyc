@@ -103,7 +103,30 @@ will produce IR code at `example.ll` , the object file at `example.s` and the fi
 ./tonyc -i <example.tony >example.ll
 ```
 
+### Library 
 
+In order to use the library functions, file lib.a must be in the same folder with all the other files (as it is right now). But, if you want to install the latest 
+vesrion, you have to follow these steps:
+
+ * Download the github repository of the library functions created by [abentopoulos](https://github.com/abenetopoulos)
+    ```bash
+    git clone https://github.com/abenetopoulos/edsger_lib.git 
+    ```
+ 
+ * Then, to build (as mentioned in github repo).
+        
+   ```bash	
+   ./libs.sh
+   ```
+ 
+ * A lib.a file will be produced, move it in tonyc's folder.
+ 
+ 
+ 
+ * Last step is to change the name of symbols 
+    ```bash
+    ./change.sh
+    ```
 
 Features
 --------
