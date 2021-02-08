@@ -409,7 +409,13 @@ and get_structure_entry atom =
       if(expr_type <> TYPE_int) then
         (array_index_error expr_type expr.expr_error_pos; raise Terminate)
       else get_structure_entry stru_atom
-  | A_call call_atom -> sem_call (call_atom) (atom.atom_error_pos)
+  | A_call call_atom ->
+    let call_entry = sem_call call_atom (atom.atom_error_pos) in
+      begin
+        match call_entry.entry_info with
+        | ENTRY_function  function_info -> call_atom.call_depth <- call_entry.entry_scope.sco_nesting
+      end;
+    call_entry
   | A_string str_atom -> newTemporary (TYPE_array (TYPE_char, -1))
 
 
@@ -417,6 +423,7 @@ and get_structure_entry atom =
 and get_atom_dimension atom cnt =
   (*Printf.printf "%d\n" cnt;*)
   match atom.atom_info with
+  | A_call (_) -> cnt
   | A_var (_) -> cnt
   | A_structure (stru_atom, _) ->  get_atom_dimension (stru_atom) (cnt+1)
   | _ -> (atom_error atom.atom_error_pos; raise Terminate)

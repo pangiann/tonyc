@@ -845,6 +845,9 @@ and gen_struct frame atom current_block (depth_of_func) =
     let index = gen_expr frame stru_expr current_block (depth_of_func) in
     let addr = build_in_bounds_gep var_atom [| index |] "arrtmp" builder in
     build_load addr "load_arr_elem_tmp" builder
+  | A_call (call_atom) ->
+      gen_atom frame atom current_block (depth_of_func)
+
 
 
 
